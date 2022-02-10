@@ -23,7 +23,9 @@ jobs:
 
     steps:
     - name: "checkout repo"
-      uses: actions/checkout@azure-enable
+      uses: actions/checkout@v2
+      with:
+        ref: azure-enable
 
     # The SP credentials used here should have RG-scoped
     # Contributor access to allow the deploy in the final step.
