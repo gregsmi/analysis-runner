@@ -1,8 +1,9 @@
 # This workflow is triggered after a new version of Hail has been built, with a
 # corresponding conda package. It leads to new driver and server Docker images being
 # built, followed by the deployment of the server.
-name: Deploy analysis-runner server after Hail update
+name: Deploy Azure analysis-runner server after Hail update
 on:
+  push:
   workflow_dispatch:
     inputs:
       hail_version:
