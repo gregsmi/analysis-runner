@@ -66,7 +66,7 @@ jobs:
         # TODO parameterize name?
         dns-name-label: analysis-runner-srv0
         name: analysis-runner-srv0
-        image: $SERVER_IMAGE
+        image: ${{ env.SERVER_IMAGE }}
         registry-login-server: ${{ secrets.REGISTRY_LOGIN_SERVER }}
         registry-username: ${{ secrets.REGISTRY_USERNAME }}
         registry-password: ${{ secrets.REGISTRY_PASSWORD }}
