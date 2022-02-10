@@ -3,7 +3,6 @@
 # built, followed by the deployment of the server.
 name: Deploy Azure analysis-runner server after Hail update
 on:
-  push:
   workflow_dispatch:
     inputs:
       hail_version:
