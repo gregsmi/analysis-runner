@@ -30,10 +30,10 @@ repos:
     additional_dependencies: [flake8-bugbear, flake8-quotes]
 
 # Using system installation of pylint to support checking python module imports
-- repo: local
-  hooks:
-  - id: pylint
-    name: pylint
-    entry: pylint
-    language: system
-    types: [python]
+# - repo: local
+#   hooks:
+#   - id: pylint
+#     name: pylint
+#     entry: pylint
+#     language: system
+#     types: [python]

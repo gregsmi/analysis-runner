@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y git wget bash bzip2 zip && \
         hail=$HAIL_VERSION \
         analysis-runner \
         bokeh \
-        cpg-utils \
+        pip \
         phantomjs \
         r-argparser \
         r-base=4.1.1 \
@@ -27,6 +27,7 @@ RUN apt-get update && apt-get install -y git wget bash bzip2 zip && \
         selenium \
         skopeo \
         statsmodels && \
+    pip install cpg-utils-ms && \
     rm -r /root/micromamba/pkgs && \
     # hailctl dataproc uses gcloud beta dataproc.
     gcloud -q components install beta

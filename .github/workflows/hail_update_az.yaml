@@ -14,9 +14,6 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      # DOCKER_BUILDKIT: 1
-      # BUILDKIT_PROGRESS: plain
-      # CLOUDSDK_CORE_DISABLE_PROMPTS: 1
       DRIVER_IMAGE: ${{ secrets.REGISTRY_LOGIN_SERVER }}/analysis-runner/driver:${{ github.sha }}-hail-${{ github.event.inputs.hail_version }}
       SERVER_IMAGE: ${{ secrets.REGISTRY_LOGIN_SERVER }}/analysis-runner/server:${{ github.sha }}-hail-${{ github.event.inputs.hail_version }}
 

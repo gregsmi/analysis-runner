@@ -5,7 +5,7 @@ channels:
   - conda-forge
 dependencies:
   - black
-  - cpg-utils
+  - cpg-utils-ms
   - flake8
   - flake8-bugbear
   - flask

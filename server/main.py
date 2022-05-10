@@ -7,22 +7,21 @@ from shlex import quote
 
 import hailtop.batch as hb
 from aiohttp import web
-
 from analysis_runner.git import prepare_git_job
+from cpg_utils.config import get_server_config
+
 from cromwell import add_cromwell_routes
 from util import (
     DRIVER_IMAGE,
     PUBSUB_TOPIC,
+    _get_hail_version,
+    validate_dataset_access,
     get_analysis_runner_metadata,
     get_email_from_request,
-    _get_hail_version,
-    validate_output_dir,
-    check_dataset_and_group,
-    check_allowed_repos,
     publisher,
-    write_metadata_to_bucket,
     run_batch_job_and_print_url,
-    get_server_config,
+    validate_output_dir,
+    write_metadata_to_bucket,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -48,16 +47,15 @@ async def index(request):
     # exception gets translated to a Bad Request error in the try block below.
     params = await request.json()
 
-    server_config = get_server_config()
-    output_suffix = validate_output_dir(params['output'])
-    dataset = params['dataset']
-    check_dataset_and_group(server_config, dataset, email)
     repo = params['repo']
-    check_allowed_repos(server_config, dataset, repo)
+    dataset = params['dataset']
+    output_suffix = validate_output_dir(params['output'])
     environment_variables = params.get('environmentVariables')
 
+    ds_config = validate_dataset_access(dataset, email, repo)
+
     access_level = params['accessLevel']
-    hail_token = server_config[dataset].get(f'{access_level}Token')
+    hail_token = ds_config.get(f'{access_level}Token')
     if not hail_token:
         raise web.HTTPBadRequest(reason=f'Invalid access level "{access_level}"')
 
@@ -101,6 +99,7 @@ async def index(request):
     user_name = email.split('@')[0]
     batch_name = f'{user_name} {repo}:{commit}/{" ".join(script)}'
 
+    server_config = get_server_config()
     dataset_gcp_project = server_config[dataset]['projectId']
     batch = hb.Batch(
         backend=backend, name=batch_name, requester_pays_project=dataset_gcp_project

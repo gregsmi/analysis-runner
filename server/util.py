@@ -2,16 +2,15 @@
 Utility methods for analysis-runner server
 """
 import os
-import json
 from shlex import quote
+from typing import Any, Dict
 
-from aiohttp import web, ClientSession
-from hailtop.config import get_deploy_config
-from google.cloud import secretmanager, pubsub_v1
-
-from cpg_utils.cloud import email_from_id_token, read_secret
-
+from aiohttp import ClientSession, web
 from analysis_runner.constants import ANALYSIS_RUNNER_PROJECT_ID
+from cpg_utils.auth import check_dataset_access, get_user_from_headers
+from cpg_utils.config import get_server_config
+from google.cloud import pubsub_v1, secretmanager
+from hailtop.config import get_deploy_config
 
 GITHUB_ORG = 'populationgenomics'
 METADATA_PREFIX = '/tmp/metadata'
@@ -35,11 +34,6 @@ secret_manager = secretmanager.SecretManagerServiceClient()
 publisher = pubsub_v1.PublisherClient()
 
 
-def get_server_config() -> dict:
-    """Get the server-config from the secret manager"""
-    return json.loads(read_secret(ANALYSIS_RUNNER_PROJECT_ID, 'server-config'))
-
-
 async def _get_hail_version() -> str:
     """ASYNC get hail version for the hail server in the local deploy_config"""
     deploy_config = get_deploy_config()
@@ -51,31 +45,11 @@ async def _get_hail_version() -> str:
 
 
 def get_email_from_request(request):
-    """
-    Get 'Authorization' from request header,
-    and parse the email address using cpg-util
-    """
-    auth_header = request.headers.get('Authorization')
-    if auth_header is None:
-        raise web.HTTPUnauthorized(reason='Missing authorization header')
-
-    try:
-        id_token = auth_header[7:]  # Strip the 'bearer' / 'Bearer' prefix.
-        return email_from_id_token(id_token)
-    except ValueError as e:
-        raise web.HTTPForbidden(reason='Invalid authorization header') from e
-
-
-def check_allowed_repos(server_config, dataset, repo):
-    """Check that repo is the in server_config allowedRepos for the dataset"""
-    allowed_repos = server_config[dataset]['allowedRepos']
-    if repo not in allowed_repos:
-        raise web.HTTPForbidden(
-            reason=(
-                f'Repository "{repo}" is not one of the allowed repositories: '
-                f'{", ".join(allowed_repos)}'
-            )
-        )
+    """Use cpg-utils to extract user from already-authenticated request headers."""
+    user = get_user_from_headers(request.headers)
+    if not user:
+        raise web.HTTPForbidden(reason='Invalid authorization header')
+    return user
 
 
 def validate_output_dir(output_dir: str):
@@ -85,24 +59,32 @@ def validate_output_dir(output_dir: str):
     return output_dir.rstrip('/')  # Strip trailing slash.
 
 
-def check_dataset_and_group(server_config, dataset, email):
-    """Check that the email address is a member of the {dataset}-access@popgen group"""
+def validate_dataset_access(dataset: str, user: str, repo: str) -> Dict[str, Any]:
+    server_config = get_server_config()
+
+    # Make sure dataset exists in server-config.
     dataset_config = server_config.get(dataset)
     if not dataset_config:
         raise web.HTTPForbidden(
+            reason=f'Dataset "{dataset}" is not part of: {", ".join(server_config.keys())}'
+        )
+
+    # Make sure specified user has access to the dataset.
+    if not check_dataset_access(dataset, user, access_type='access'):
+        raise web.HTTPForbidden(
+            reason=f'{user} is not a member of the {dataset} access group'
+        )
+
+    # Check that repo is the in server-config allowedRepos for the dataset.
+    allowed_repos = dataset_config['allowedRepos']
+    if repo not in allowed_repos:
+        raise web.HTTPForbidden(
             reason=(
-                f'Dataset "{dataset}" is not part of: '
-                f'{", ".join(server_config.keys())}'
+                f'Repository "{repo}" is not one of the allowed repositories: {", ".join(allowed_repos)}'
             )
         )
 
-    group_members = read_secret(
-        dataset_config['projectId'], f'{dataset}-access-members-cache'
-    ).split(',')
-    if email not in group_members:
-        raise web.HTTPForbidden(
-            reason=f'{email} is not a member of the {dataset} access group'
-        )
+    return dataset_config
 
 
 # pylint: disable=too-many-arguments

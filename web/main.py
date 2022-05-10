@@ -1,12 +1,12 @@
 """Web server which proxies requests to per-dataset "web" buckets."""
 
-import json
 import logging
 import mimetypes
 import os
-from flask import Flask, abort, request, Response
+
 import google.cloud.storage
-from cpg_utils.cloud import email_from_id_token, read_secret
+from cpg_utils.auth import check_dataset_access, get_user_from_headers
+from flask import Flask, Response, abort, request
 
 ANALYSIS_RUNNER_PROJECT_ID = 'analysis-runner'
 
@@ -26,29 +26,13 @@ def handler(dataset=None, filename=None):
         logger.warning('Invalid request parameters')
         abort(400)
 
-    id_token = request.headers.get('x-goog-iap-jwt-assertion')
-    if not id_token:
-        logger.warning('Missing x-goog-iap-jwt-assertion header')
-        abort(403)
-
-    try:
-        email = email_from_id_token(id_token)
-    except ValueError:
+    email = get_user_from_headers(request.headers)
+    if not email:
         logger.warning('Failed to extract email from ID token')
         abort(403)
 
-    server_config = json.loads(read_secret(ANALYSIS_RUNNER_PROJECT_ID, 'server-config'))
-    dataset_config = server_config.get(dataset)
-    if not dataset_config:
-        logger.warning(f'Invalid dataset "{dataset}"')
-        abort(400)
-
-    dataset_project_id = dataset_config['projectId']
-    members = read_secret(
-        dataset_project_id, f'{dataset}-web-access-members-cache'
-    ).split(',')
-    if email not in members:
-        logger.warning(f'{email} is not a member of the {dataset} access group')
+    if not check_dataset_access(dataset, email, access_type='web-access'):
+        logger.warning(f'{email} is not a member of the {dataset} web-access group')
         abort(403)
 
     bucket_name = f'cpg-{dataset}-{BUCKET_SUFFIX}'

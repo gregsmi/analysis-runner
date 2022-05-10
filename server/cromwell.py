@@ -9,23 +9,20 @@ from datetime import datetime
 import hailtop.batch as hb
 import requests
 from aiohttp import web
-
 from analysis_runner.constants import CROMWELL_URL
 from analysis_runner.cromwell import get_cromwell_oauth_token, run_cromwell_workflow
 from analysis_runner.git import prepare_git_job
 
 # pylint: disable=wrong-import-order
 from util import (
-    PUBSUB_TOPIC,
     DRIVER_IMAGE,
-    get_server_config,
+    PUBSUB_TOPIC,
     get_analysis_runner_metadata,
     get_email_from_request,
-    validate_output_dir,
-    check_dataset_and_group,
-    check_allowed_repos,
     publisher,
     run_batch_job_and_print_url,
+    validate_dataset_access,
+    validate_output_dir,
     write_metadata_to_bucket,
 )
 
@@ -58,23 +55,18 @@ def add_cromwell_routes(
         # exception gets translated to a Bad Request error in the try block below.
         params = await request.json()
 
-        dataset = params['dataset']
-        access_level = params['accessLevel']
-        server_config = get_server_config()
-        output_dir = validate_output_dir(params['output'])
-        check_dataset_and_group(server_config, dataset, email)
         repo = params['repo']
-        check_allowed_repos(server_config, dataset, repo)
+        dataset = params['dataset']
+        output_dir = validate_output_dir(params['output'])
         labels = params.get('labels')
 
-        ds_config = server_config[dataset]
-        project = ds_config.get('projectId')
-        hail_token = ds_config.get(f'{access_level}Token')
+        ds_config = validate_dataset_access(dataset, email, repo)
 
+        project = ds_config.get('projectId')
+        access_level = params['accessLevel']
+        hail_token = ds_config.get(f'{access_level}Token')
         if not hail_token:
-            raise web.HTTPBadRequest(
-                reason=f"Invalid access level '{access_level}', couldn't find corresponding hail token"
-            )
+            raise web.HTTPBadRequest(reason=f'Invalid access level "{access_level}"')
 
         # use the email specified by the service_account_json again
 
