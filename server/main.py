@@ -13,13 +13,12 @@ from cpg_utils.config import get_server_config
 from cromwell import add_cromwell_routes
 from util import (
     DRIVER_IMAGE,
-    PUBSUB_TOPIC,
     _get_hail_version,
-    validate_dataset_access,
+    add_analysis_metadata,
     get_analysis_runner_metadata,
     get_email_from_request,
-    publisher,
     run_batch_job_and_print_url,
+    validate_dataset_access,
     validate_output_dir,
     write_metadata_to_bucket,
 )
@@ -157,7 +156,7 @@ async def index(request):
 
     # Publish the metadata to Pub/Sub.
     metadata['batch_url'] = url
-    publisher.publish(PUBSUB_TOPIC, json.dumps(metadata).encode('utf-8')).result()
+    add_analysis_metadata(metadata)
 
     return web.Response(text=f'{url}\n')
 

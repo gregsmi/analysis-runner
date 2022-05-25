@@ -16,10 +16,9 @@ from analysis_runner.git import prepare_git_job
 # pylint: disable=wrong-import-order
 from util import (
     DRIVER_IMAGE,
-    PUBSUB_TOPIC,
+    add_analysis_metadata,
     get_analysis_runner_metadata,
     get_email_from_request,
-    publisher,
     run_batch_job_and_print_url,
     validate_dataset_access,
     validate_output_dir,
@@ -162,7 +161,7 @@ def add_cromwell_routes(
 
         # Publish the metadata to Pub/Sub.
         metadata['batch_url'] = url
-        publisher.publish(PUBSUB_TOPIC, json.dumps(metadata).encode('utf-8')).result()
+        add_analysis_metadata(metadata)
 
         return web.Response(text=f'{url}\n')
 

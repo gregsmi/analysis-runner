@@ -6,32 +6,13 @@ from shlex import quote
 from typing import Any, Dict
 
 from aiohttp import ClientSession, web
-from analysis_runner.constants import ANALYSIS_RUNNER_PROJECT_ID
 from cpg_utils.auth import check_dataset_access, get_user_from_headers
 from cpg_utils.config import get_server_config
-from google.cloud import pubsub_v1, secretmanager
 from hailtop.config import get_deploy_config
+from sample_metadata.apis import AnalysisApi
 
-GITHUB_ORG = 'populationgenomics'
-METADATA_PREFIX = '/tmp/metadata'
-PUBSUB_TOPIC = f'projects/{ANALYSIS_RUNNER_PROJECT_ID}/topics/submissions'
 DRIVER_IMAGE = os.getenv('DRIVER_IMAGE')
 assert DRIVER_IMAGE
-
-COMBINE_METADATA = """
-import json
-import sys
-
-def load(filename):
-    text = open(filename).read().strip()
-    val = json.loads(text) if len(text) else []
-    return val if type(val) is list else [val]
-
-print(json.dumps(load(sys.argv[1]) + load(sys.argv[2])))
-"""
-
-secret_manager = secretmanager.SecretManagerServiceClient()
-publisher = pubsub_v1.PublisherClient()
 
 
 async def _get_hail_version() -> str:
@@ -107,7 +88,7 @@ def get_analysis_runner_metadata(
     with some flexibility to provide your own keys (as **kwargs)
     """
     bucket_type = 'test' if access_level == 'test' else 'main'
-    output_dir = f'gs://cpg-{dataset}-{bucket_type}/{output_suffix}'
+    output_dir = f'cpg-{dataset}-{bucket_type}/{output_suffix}'
 
     return {
         'timestamp': timestamp,
@@ -150,16 +131,40 @@ def write_metadata_to_bucket(
     output directory gets used multiple times.
     """
 
-    bucket_type = 'test' if access_level == 'test' else 'main'
-    metadata_path = f'gs://cpg-{dataset}-{bucket_type}-analysis/metadata/{output_suffix}/analysis-runner.json'
-    job.command(
-        f'gsutil cp {quote(metadata_path)} {METADATA_PREFIX}_old.json '
-        f'|| touch {METADATA_PREFIX}_old.json'
+    bucket_type = ('test' if access_level == 'test' else 'main') + '-analysis'
+    blob_path = f'metadata/{output_suffix}/analysis-runner.json'
+
+    script_path = os.path.normpath(
+        os.path.join(os.path.dirname(__file__), 'append_metadata.py')
     )
-    job.command(f'echo {quote(metadata_str)} > {METADATA_PREFIX}_new.json')
-    job.command(f'echo "{COMBINE_METADATA}" > {METADATA_PREFIX}_combiner.py')
+    with open(script_path, encoding='utf-8') as f:
+        script = f.read()
+
+    job.command(f'echo {quote(script)} > append_metadata.py')
     job.command(
-        f'python3 {METADATA_PREFIX}_combiner.py {METADATA_PREFIX}_old.json '
-        f'{METADATA_PREFIX}_new.json > {METADATA_PREFIX}.json'
+        f'python3 append_metadata.py '
+        f'{dataset} {bucket_type} {blob_path} {quote(metadata_str)}'
     )
-    job.command(f'gsutil cp {METADATA_PREFIX}.json {quote(metadata_path)}')
+
+
+def add_analysis_metadata(metadata: Dict[str, str]) -> None:
+    project = metadata.pop('dataset')
+    output_dir = metadata.pop('output')
+    metadata['source'] = 'analysis-runner'
+    access_level = metadata.get('accessLevel')
+
+    if access_level == 'test':
+        project += '-test'
+
+    analysis_model = {
+        'sample_ids': [],
+        'type': 'custom',
+        'status': 'unknown',
+        'output': output_dir,
+        'author': metadata.pop('user'),
+        'meta': metadata,
+        'active': False,
+    }
+
+    analysis = AnalysisApi()
+    analysis.create_new_analysis(project, analysis_model)

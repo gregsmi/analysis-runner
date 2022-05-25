@@ -23,11 +23,10 @@ RUN apt-get update && apt-get install -y git wget bash bzip2 zip && \
         r-base=4.1.1 \
         r-essentials \
         r-tidyverse \
-        sample-metadata=4.1.1 \
         selenium \
         skopeo \
         statsmodels && \
-    pip install cpg-utils-ms && \
+    pip install cpg-utils-ms sample-metadata-ms && \
     rm -r /root/micromamba/pkgs && \
     # hailctl dataproc uses gcloud beta dataproc.
     gcloud -q components install beta

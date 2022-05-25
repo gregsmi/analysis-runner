@@ -6,9 +6,8 @@ import os
 
 import google.cloud.storage
 from cpg_utils.auth import check_dataset_access, get_user_from_headers
+from cpg_utils.storage import get_data_manager
 from flask import Flask, Response, abort, request
-
-ANALYSIS_RUNNER_PROJECT_ID = 'analysis-runner'
 
 BUCKET_SUFFIX = os.getenv('BUCKET_SUFFIX')
 assert BUCKET_SUFFIX
@@ -35,14 +34,12 @@ def handler(dataset=None, filename=None):
         logger.warning(f'{email} is not a member of the {dataset} web-access group')
         abort(403)
 
-    bucket_name = f'cpg-{dataset}-{BUCKET_SUFFIX}'
-    logger.info(f'Fetching blob gs://{bucket_name}/{filename}')
-    bucket = storage_client.bucket(bucket_name)
-    blob = bucket.get_blob(filename)
+    data_mgr = get_data_manager()
+    blob = data_mgr.get_blob(dataset, BUCKET_SUFFIX, filename)
     if blob is None:
         abort(404)
 
-    response = Response(blob.download_as_bytes())
+    response = Response(blob)
     response.headers['Content-Type'] = (
         mimetypes.guess_type(filename)[0] or 'application/octet-stream'
     )

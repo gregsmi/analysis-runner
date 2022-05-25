@@ -3,8 +3,6 @@ ARG DRIVER_IMAGE
 FROM ${DRIVER_IMAGE}
 
 RUN micromamba install --prefix $MAMBA_ROOT_PREFIX -c cpg -c conda-forge \
-    google-api-python-client==2.10.0 \
-    google-cloud-pubsub==2.3.0 \
     google-cloud-logging==2.7.0 \
     gunicorn \
     requests && \
@@ -16,7 +14,7 @@ ENV PYTHONUNBUFFERED 1
 ENV PORT 8080
 EXPOSE $PORT
 
-COPY main.py cromwell.py util.py ./
+COPY main.py cromwell.py util.py append_metadata.py ./
 
 # Prepare the Hail deploy config to point to the CPG domain.
 COPY deploy-config.json /deploy-config/deploy-config.json

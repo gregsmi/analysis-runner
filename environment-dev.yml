@@ -5,7 +5,6 @@ channels:
   - conda-forge
 dependencies:
   - black
-  - cpg-utils-ms
   - flake8
   - flake8-bugbear
   - flask
@@ -26,3 +25,4 @@ dependencies:
   - pip:
     - airtable-python-wrapper==0.15.1
     - pulumi-gcp
+    - cpg-utils-ms
