@@ -4,7 +4,6 @@ import logging
 import mimetypes
 import os
 
-import google.cloud.storage
 from cpg_utils.auth import check_dataset_access, get_user_from_headers
 from cpg_utils.storage import get_data_manager
 from flask import Flask, Response, abort, request
@@ -14,7 +13,6 @@ assert BUCKET_SUFFIX
 
 app = Flask(__name__)
 
-storage_client = google.cloud.storage.Client()
 logger = logging.getLogger('gunicorn.error')
 
 
