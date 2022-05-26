@@ -24,7 +24,7 @@ jobs:
 
         # Set up analyis-runner web image name and web endpoint.
         echo "ARW_DOCKER_IMAGE=$AZURE_CR/analysis-runner/web" >> $GITHUB_ENV
-        echo "ARW_APP_NAME=arwapi-$(jq -r .analysis_runner_project $CONFIG_FILE)" >> $GITHUB_ENV
+        echo "ARW_APP_NAME=arweb-$(jq -r .analysis_runner_project $CONFIG_FILE)" >> $GITHUB_ENV
 
     - name: 'Build and push analysis runner web image'
       uses: azure/docker-login@v1
