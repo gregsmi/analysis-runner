@@ -1,0 +1,49 @@
+name: Deploy web server to Azure
+on: workflow_dispatch
+jobs:
+  deploy_server:
+    runs-on: ubuntu-latest
+
+    env:
+      DEPLOYMENT_TYPE: prod
+
+    steps:
+    - name: "checkout repo"
+      uses: actions/checkout@v2
+
+    # Set up deployment location targets as environment variables based on deploy-config.json.
+    - name: 'Set deployment location variables'
+      run: |
+        CONFIG_FILE=deploy-config.$DEPLOYMENT_TYPE.json
+
+        # Set up container registry authentication for image push.
+        AZURE_CR=$(jq -r .analysis_runner_project $CONFIG_FILE)acr.azurecr.io
+        echo "CLIENT_ID=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.clientId')" >> $GITHUB_ENV
+        echo "CLIENT_PWD=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.clientSecret')" >> $GITHUB_ENV
+        echo "AZURE_CR=$AZURE_CR" >> $GITHUB_ENV
+
+        # Set up analyis-runner web image name and web endpoint.
+        echo "ARW_DOCKER_IMAGE=$AZURE_CR/analysis-runner/web" >> $GITHUB_ENV
+        echo "ARW_APP_NAME=arwapi-$(jq -r .analysis_runner_project $CONFIG_FILE)" >> $GITHUB_ENV
+
+    - name: 'Build and push analysis runner web image'
+      uses: azure/docker-login@v1
+      with:
+        login-server: ${{ env.AZURE_CR }}
+        username: ${{ env.CLIENT_ID }}
+        password: ${{ env.CLIENT_PWD }}
+    - run: |
+        docker build --tag ${ARW_DOCKER_IMAGE}:${{ github.sha }} --tag ${ARW_DOCKER_IMAGE}:latest web
+        docker push ${ARW_DOCKER_IMAGE}:${{ github.sha }}
+        docker push ${ARW_DOCKER_IMAGE}:latest
+
+    - name: 'Login via Azure CLI'
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: 'Deploy AR web image to web app'
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: ${{ env.ARW_APP_NAME }}
+        images: '${{ env.ARW_DOCKER_IMAGE }}:latest'
