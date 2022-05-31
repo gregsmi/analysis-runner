@@ -2,23 +2,34 @@
 Utility methods for analysis-runner server
 """
 import os
+import uuid
 from shlex import quote
-from typing import Any, Dict
+from typing import Any, Dict, MutableMapping
 
+import toml
 from aiohttp import ClientSession, web
+from cloudpathlib import AnyPath
 from cpg_utils.auth import check_dataset_access, get_user_from_headers
 from cpg_utils.config import get_server_config
 from hailtop.config import get_deploy_config
 from sample_metadata.apis import AnalysisApi
 
+ALLOWED_CONTAINER_IMAGE_PREFIXES = (
+    'australia-southeast1-docker.pkg.dev/analysis-runner/',
+    'australia-southeast1-docker.pkg.dev/cpg-common/',
+)
 DRIVER_IMAGE = os.getenv('DRIVER_IMAGE')
 assert DRIVER_IMAGE
+IMAGE_REGISTRY_PREFIX = 'australia-southeast1-docker.pkg.dev/cpg-common/images'
+REFERENCE_PREFIX = 'gs://cpg-reference'
+CONFIG_PATH_PREFIX = 'gs://cpg-config'
+WEB_URL_TEMPLATE = 'https://{namespace}-web.populationgenomics.org.au/{dataset}'
 
 
 async def _get_hail_version() -> str:
     """ASYNC get hail version for the hail server in the local deploy_config"""
     deploy_config = get_deploy_config()
-    url = deploy_config.url('query', f'/api/v1alpha/version')
+    url = deploy_config.url('batch', f'/api/v1alpha/version')
     async with ClientSession() as session:
         async with session.get(url) as resp:
             resp.raise_for_status()
@@ -78,7 +89,7 @@ def get_analysis_runner_metadata(
     commit,
     script,
     description,
-    output_suffix,
+    output_prefix,
     driver_image,
     cwd,
     **kwargs,
@@ -88,7 +99,7 @@ def get_analysis_runner_metadata(
     with some flexibility to provide your own keys (as **kwargs)
     """
     bucket_type = 'test' if access_level == 'test' else 'main'
-    output_dir = f'cpg-{dataset}-{bucket_type}/{output_suffix}'
+    output_dir = f'gs://cpg-{dataset}-{bucket_type}/{output_prefix}'
 
     return {
         'timestamp': timestamp,
@@ -122,7 +133,7 @@ def run_batch_job_and_print_url(batch, wait):
 
 
 def write_metadata_to_bucket(
-    job, access_level: str, dataset: str, output_suffix: str, metadata_str: str
+    job, access_level: str, dataset: str, output_prefix: str, metadata_str: str
 ):
     """
     Copy analysis-runner.json to the metadata bucket
@@ -132,7 +143,7 @@ def write_metadata_to_bucket(
     """
 
     bucket_type = ('test' if access_level == 'test' else 'main') + '-analysis'
-    blob_path = f'metadata/{output_suffix}/analysis-runner.json'
+    blob_path = f'metadata/{output_prefix}/analysis-runner.json'
 
     script_path = os.path.normpath(
         os.path.join(os.path.dirname(__file__), 'append_metadata.py')
@@ -168,3 +179,20 @@ def add_analysis_metadata(metadata: Dict[str, str]) -> None:
 
     analysis = AnalysisApi()
     analysis.create_new_analysis(project, analysis_model)
+
+
+def validate_image(container: str, is_test: bool):
+    """
+    Check that the image is valid for the access_level
+    """
+    return is_test or any(
+        container.startswith(prefix) for prefix in ALLOWED_CONTAINER_IMAGE_PREFIXES
+    )
+
+
+def write_config(config: MutableMapping[str, Any]) -> str:
+    """Writes the given config dictionary to a blob and returns its unique path."""
+    config_path = AnyPath(CONFIG_PATH_PREFIX) / (str(uuid.uuid4()) + '.toml')
+    with config_path.open('w') as f:
+        toml.dump(config, f)
+    return str(config_path)

@@ -4,7 +4,6 @@ import datetime
 import json
 import logging
 from shlex import quote
-
 import hailtop.batch as hb
 from aiohttp import web
 from analysis_runner.git import prepare_git_job
@@ -13,15 +12,21 @@ from cpg_utils.config import get_server_config
 from cromwell import add_cromwell_routes
 from util import (
     DRIVER_IMAGE,
+    IMAGE_REGISTRY_PREFIX,
+    REFERENCE_PREFIX,
+    WEB_URL_TEMPLATE,
     _get_hail_version,
     add_analysis_metadata,
     get_analysis_runner_metadata,
     get_email_from_request,
     run_batch_job_and_print_url,
     validate_dataset_access,
+    validate_image,
     validate_output_dir,
+    write_config,
     write_metadata_to_bucket,
 )
+from cpg_utils.hail_batch import remote_tmpdir
 
 logging.basicConfig(level=logging.INFO)
 # do it like this so it's easy to disable
@@ -48,7 +53,11 @@ async def index(request):
 
     repo = params['repo']
     dataset = params['dataset']
-    output_suffix = validate_output_dir(params['output'])
+    output_prefix = validate_output_dir(params['output'])
+
+    image = params.get('image') or DRIVER_IMAGE
+    cpu = params.get('cpu', 1)
+    memory = params.get('memory', '1G')
     environment_variables = params.get('environmentVariables')
 
     ds_config = validate_dataset_access(dataset, email, repo)
@@ -58,10 +67,14 @@ async def index(request):
     if not hail_token:
         raise web.HTTPBadRequest(reason=f'Invalid access level "{access_level}"')
 
+    is_test = access_level == 'test'
+    if not validate_image(image, is_test):
+        raise web.HTTPBadRequest(reason=f'Invalid image "{image}"')
+
     hail_bucket = f'cpg-{dataset}-hail'
     backend = hb.ServiceBackend(
         billing_project=dataset,
-        bucket=hail_bucket,
+        remote_tmpdir=remote_tmpdir(hail_bucket),
         token=hail_token,
     )
 
@@ -89,9 +102,9 @@ async def index(request):
         commit=commit,
         script=' '.join(script),
         description=params['description'],
-        output_suffix=output_suffix,
+        output_prefix=output_prefix,
         hailVersion=hail_version,
-        driver_image=DRIVER_IMAGE,
+        driver_image=image,
         cwd=cwd,
     )
 
@@ -105,24 +118,42 @@ async def index(request):
     )
 
     job = batch.new_job(name='driver')
-    job = prepare_git_job(
-        job=job, repo_name=repo, commit=commit, is_test=access_level == 'test'
-    )
+    job = prepare_git_job(job=job, repo_name=repo, commit=commit, is_test=is_test)
     write_metadata_to_bucket(
         job,
         access_level=access_level,
         dataset=dataset,
-        output_suffix=output_suffix,
+        output_prefix=output_prefix,
         metadata_str=json.dumps(metadata),
     )
-    job.image(DRIVER_IMAGE)
-    job.env('DRIVER_IMAGE', DRIVER_IMAGE)
-    job.env('DATASET', dataset)
-    job.env('ACCESS_LEVEL', access_level)
-    job.env('HAIL_BUCKET', hail_bucket)
-    job.env('HAIL_BILLING_PROJECT', dataset)
-    job.env('DATASET_GCP_PROJECT', dataset_gcp_project)
-    job.env('OUTPUT', output_suffix)
+    job.image(image)
+    if cpu:
+        job.cpu(cpu)
+    if memory:
+        job.memory(memory)
+
+    # Prepare the job's configuration, which will be written to a blob.
+    config = {
+        'hail': {
+            'billing_project': dataset,
+            'bucket': hail_bucket,
+        },
+        'workflow': {
+            'access_level': access_level,
+            'dataset': dataset,
+            'dataset_gcp_project': dataset_gcp_project,
+            'driver_image': DRIVER_IMAGE,
+            'image_registry_prefix': IMAGE_REGISTRY_PREFIX,
+            'reference_prefix': REFERENCE_PREFIX,
+            'output_prefix': output_prefix,
+            'web_url_template': WEB_URL_TEMPLATE,
+        },
+    }
+
+    # NOTE: Prefer using config variables instead of environment variables.
+    # In case you need to add an environment variable here, make sure to update the
+    # cpg_utils.hail_batch.copy_common_env function!
+    job.env('CPG_CONFIG_PATH', write_config(config))
 
     if environment_variables:
         if not isinstance(environment_variables, dict):

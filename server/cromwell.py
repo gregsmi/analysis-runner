@@ -9,6 +9,9 @@ from datetime import datetime
 import hailtop.batch as hb
 import requests
 from aiohttp import web
+
+from cpg_utils.hail_batch import remote_tmpdir
+
 from analysis_runner.constants import CROMWELL_URL
 from analysis_runner.cromwell import get_cromwell_oauth_token, run_cromwell_workflow
 from analysis_runner.git import prepare_git_job
@@ -16,12 +19,16 @@ from analysis_runner.git import prepare_git_job
 # pylint: disable=wrong-import-order
 from util import (
     DRIVER_IMAGE,
+    IMAGE_REGISTRY_PREFIX,
+    REFERENCE_PREFIX,
+    WEB_URL_TEMPLATE,
     add_analysis_metadata,
     get_analysis_runner_metadata,
     get_email_from_request,
     run_batch_job_and_print_url,
     validate_dataset_access,
     validate_output_dir,
+    write_config,
     write_metadata_to_bucket,
 )
 
@@ -67,10 +74,6 @@ def add_cromwell_routes(
         if not hail_token:
             raise web.HTTPBadRequest(reason=f'Invalid access level "{access_level}"')
 
-        # use the email specified by the service_account_json again
-
-        hail_bucket = f'cpg-{dataset}-hail'
-
         commit = params['commit']
         if not commit or commit == 'HEAD':
             raise web.HTTPBadRequest(reason='Invalid commit parameter')
@@ -102,7 +105,7 @@ def add_cromwell_routes(
             commit=commit,
             script=wf,
             description=params['description'],
-            output_suffix=workflow_output_dir,
+            output_prefix=workflow_output_dir,
             driver_image=DRIVER_IMAGE,
             cwd=cwd,
             mode='cromwell',
@@ -110,9 +113,11 @@ def add_cromwell_routes(
 
         user_name = email.split('@')[0]
         batch_name = f'{user_name} {repo}:{commit}/cromwell/{wf}'
+
+        hail_bucket = f'cpg-{dataset}-hail'
         backend = hb.ServiceBackend(
             billing_project=dataset,
-            bucket=hail_bucket,
+            remote_tmpdir=remote_tmpdir(hail_bucket),
             token=hail_token,
         )
 
@@ -133,15 +138,25 @@ def add_cromwell_routes(
             job,
             access_level=access_level,
             dataset=dataset,
-            output_suffix=output_dir,
+            output_prefix=output_dir,
             metadata_str=json.dumps(metadata),
         )
         job.image(DRIVER_IMAGE)
 
-        job.env('DRIVER_IMAGE', DRIVER_IMAGE)
-        job.env('DATASET', dataset)
-        job.env('ACCESS_LEVEL', access_level)
-        job.env('OUTPUT', output_dir)
+        config = {
+            'workflow': {
+                'access_level': access_level,
+                'dataset': dataset,
+                'dataset_gcp_project': project,
+                'driver_image': DRIVER_IMAGE,
+                'image_registry_prefix': IMAGE_REGISTRY_PREFIX,
+                'reference_prefix': REFERENCE_PREFIX,
+                'output_prefix': output_dir,
+                'web_url_template': WEB_URL_TEMPLATE,
+            },
+        }
+
+        job.env('CPG_CONFIG_PATH', write_config(config))
 
         run_cromwell_workflow(
             job=job,
@@ -151,7 +166,7 @@ def add_cromwell_routes(
             cwd=cwd,
             libs=libs,
             labels=labels,
-            output_suffix=output_dir,
+            output_prefix=output_dir,
             input_dict=input_dict,
             input_paths=input_jsons,
             project=project,
@@ -159,8 +174,8 @@ def add_cromwell_routes(
 
         url = run_batch_job_and_print_url(batch, wait=params.get('wait', False))
 
-        # Publish the metadata to Pub/Sub.
         metadata['batch_url'] = url
+        # Publish the metadata to Pub/Sub.
         add_analysis_metadata(metadata)
 
         return web.Response(text=f'{url}\n')
