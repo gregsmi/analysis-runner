@@ -20,6 +20,7 @@ from util import (
     get_analysis_runner_metadata,
     get_email_from_request,
     run_batch_job_and_print_url,
+    update_dict,
     validate_dataset_access,
     validate_image,
     validate_output_dir,
@@ -93,6 +94,34 @@ async def index(request):
     # This metadata dictionary gets stored in the metadata bucket, at the output_dir location.
     hail_version = await _get_hail_version()
     timestamp = datetime.datetime.now().astimezone().isoformat()
+    server_config = get_server_config()
+    dataset_gcp_project = server_config[dataset]['projectId']
+
+    # Prepare the job's configuration, which will be written to a blob.
+    # We overwrite any conflicting entries with the analysis-runner values.
+    config = params.get('config') or {}
+    update_dict(
+        config,
+        {
+            'hail': {
+                'billing_project': dataset,
+                'bucket': hail_bucket,
+            },
+            'workflow': {
+                'access_level': access_level,
+                'dataset': dataset,
+                'dataset_gcp_project': dataset_gcp_project,
+                'driver_image': DRIVER_IMAGE,
+                'image_registry_prefix': IMAGE_REGISTRY_PREFIX,
+                'reference_prefix': REFERENCE_PREFIX,
+                'output_prefix': output_prefix,
+                'web_url_template': WEB_URL_TEMPLATE,
+            },
+        },
+    )
+
+    config_path = write_config(config)
+
     metadata = get_analysis_runner_metadata(
         timestamp=timestamp,
         dataset=dataset,
@@ -105,14 +134,13 @@ async def index(request):
         output_prefix=output_prefix,
         hailVersion=hail_version,
         driver_image=image,
+        config_path=config_path,
         cwd=cwd,
     )
 
     user_name = email.split('@')[0]
     batch_name = f'{user_name} {repo}:{commit}/{" ".join(script)}'
 
-    server_config = get_server_config()
-    dataset_gcp_project = server_config[dataset]['projectId']
     batch = hb.Batch(
         backend=backend, name=batch_name, requester_pays_project=dataset_gcp_project
     )
@@ -132,28 +160,10 @@ async def index(request):
     if memory:
         job.memory(memory)
 
-    # Prepare the job's configuration, which will be written to a blob.
-    config = {
-        'hail': {
-            'billing_project': dataset,
-            'bucket': hail_bucket,
-        },
-        'workflow': {
-            'access_level': access_level,
-            'dataset': dataset,
-            'dataset_gcp_project': dataset_gcp_project,
-            'driver_image': DRIVER_IMAGE,
-            'image_registry_prefix': IMAGE_REGISTRY_PREFIX,
-            'reference_prefix': REFERENCE_PREFIX,
-            'output_prefix': output_prefix,
-            'web_url_template': WEB_URL_TEMPLATE,
-        },
-    }
-
     # NOTE: Prefer using config variables instead of environment variables.
     # In case you need to add an environment variable here, make sure to update the
     # cpg_utils.hail_batch.copy_common_env function!
-    job.env('CPG_CONFIG_PATH', write_config(config))
+    job.env('CPG_CONFIG_PATH', config_path)
 
     if environment_variables:
         if not isinstance(environment_variables, dict):
