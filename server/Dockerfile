@@ -2,11 +2,13 @@
 ARG DRIVER_IMAGE
 FROM ${DRIVER_IMAGE}
 
-RUN micromamba install --prefix $MAMBA_ROOT_PREFIX -c cpg -c conda-forge \
-    google-cloud-logging==2.7.0 \
+RUN pip install \
+    google-api-python-client==2.10.0 \
+    google-cloud-secret-manager==2.2.0 \
+    google-cloud-pubsub==2.3.0 \
+    google-cloud-logging==3.1.1 \
     gunicorn \
-    requests && \
-    rm -r /root/micromamba/pkgs
+    protobuf==3.20.1
 
 # Allow statements and log messages to immediately appear in the Knative logs.
 ENV PYTHONUNBUFFERED 1

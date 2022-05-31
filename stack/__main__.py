@@ -22,6 +22,8 @@ ACCESS_GROUP_CACHE_SERVICE_ACCOUNT = (
     'access-group-cache@analysis-runner.iam.gserviceaccount.com'
 )
 REFERENCE_BUCKET_NAME = 'cpg-reference'
+ANALYSIS_RUNNER_CONFIG_BUCKET_NAME = 'cpg-config'
+HAIL_WHEEL_BUCKET_NAME = 'cpg-hail-ci'
 NOTEBOOKS_PROJECT = 'notebooks-314505'
 # cromwell-submission-access@populationgenomics.org.au
 CROMWELL_ACCESS_GROUP_ID = 'groups/03cqmetx2922fyu'
@@ -80,10 +82,26 @@ def main():  # pylint: disable=too-many-locals,too-many-branches
     )
 
     # Enable Dataproc until the Hail Query Service is ready.
-    _ = gcp.projects.Service(
+    gcp.projects.Service(
         'dataproc-service',
         service='dataproc.googleapis.com',
         disable_on_destroy=False,
+        opts=pulumi.resource.ResourceOptions(depends_on=[cloudresourcemanager]),
+    )
+
+    # The Life Sciences API depends on the Service Usage API.
+    serviceusage = gcp.projects.Service(
+        'serviceusage-service',
+        service='serviceusage.googleapis.com',
+        disable_on_destroy=False,
+    )
+
+    # Cromwell uses the Life Sciences API.
+    gcp.projects.Service(
+        'lifesciences-service',
+        service='lifesciences.googleapis.com',
+        disable_on_destroy=False,
+        opts=pulumi.resource.ResourceOptions(depends_on=[serviceusage]),
     )
 
     service_accounts = defaultdict(list)
@@ -369,6 +387,7 @@ def main():  # pylint: disable=too-many-locals,too-many-branches
         'secretmanager-service',
         service='secretmanager.googleapis.com',
         disable_on_destroy=False,
+        opts=pulumi.resource.ResourceOptions(depends_on=[cloudresourcemanager]),
     )
 
     # These secrets are used as a fast cache for checking memberships in the above groups.
@@ -591,6 +610,49 @@ def main():  # pylint: disable=too-many-locals,too-many-branches
         member=pulumi.Output.concat('serviceAccount:', WEB_SERVER_SERVICE_ACCOUNT),
     )
 
+    # Allow reading from the Artifact registry.
+    gcp.artifactregistry.RepositoryIamMember(
+        f'access-group-images-reader-in-cpg-common',
+        project=CPG_COMMON_PROJECT,
+        location=REGION,
+        repository='images',
+        role='roles/artifactregistry.reader',
+        member=pulumi.Output.concat('group:', access_group.group_key.id),
+    )
+
+    gcp.artifactregistry.RepositoryIamMember(
+        f'access-group-images-reader-in-analysis-runner',
+        project=ANALYSIS_RUNNER_PROJECT,
+        location=REGION,
+        repository='images',
+        role='roles/artifactregistry.reader',
+        member=pulumi.Output.concat('group:', access_group.group_key.id),
+    )
+
+    # Read access to reference data.
+    bucket_member(
+        'access-group-reference-bucket-viewer',
+        bucket=REFERENCE_BUCKET_NAME,
+        role=viewer_role_id,
+        member=pulumi.Output.concat('group:', access_group.group_key.id),
+    )
+
+    # Read access to Hail wheels.
+    bucket_member(
+        'access-group-hail-wheels-viewer',
+        bucket=HAIL_WHEEL_BUCKET_NAME,
+        role=viewer_role_id,
+        member=pulumi.Output.concat('group:', access_group.group_key.id),
+    )
+
+    # Read access to analysis-runner configs.
+    bucket_member(
+        'access-group-analysis-runner-config-viewer',
+        bucket=ANALYSIS_RUNNER_CONFIG_BUCKET_NAME,
+        role=viewer_role_id,
+        member=pulumi.Output.concat('group:', access_group.group_key.id),
+    )
+
     # Allow the usage of requester-pays buckets.
     gcp.projects.IAMMember(
         f'access-group-serviceusage-consumer',
@@ -662,6 +724,22 @@ def main():  # pylint: disable=too-many-locals,too-many-branches
             member=pulumi.Output.concat('group:', group.group_key.id),
         )
 
+        # Read access to Hail wheels.
+        bucket_member(
+            f'{access_level}-hail-wheels-viewer',
+            bucket=HAIL_WHEEL_BUCKET_NAME,
+            role=viewer_role_id,
+            member=pulumi.Output.concat('group:', group.group_key.id),
+        )
+
+        # Read access to analysis-runner configs.
+        bucket_member(
+            f'{access_level}-analysis-runner-config-viewer',
+            bucket=ANALYSIS_RUNNER_CONFIG_BUCKET_NAME,
+            role=viewer_role_id,
+            member=pulumi.Output.concat('group:', group.group_key.id),
+        )
+
         # Allow the usage of requester-pays buckets.
         gcp.projects.IAMMember(
             f'{access_level}-serviceusage-consumer',
@@ -680,6 +758,14 @@ def main():  # pylint: disable=too-many-locals,too-many-branches
             role='roles/storage.admin',
             member=pulumi.Output.concat('serviceAccount:', service_account),
         )
+
+    # The analysis-runner also needs Hail bucket access for compiled code.
+    bucket_member(
+        f'analysis-runner-hail-bucket-admin',
+        bucket=hail_bucket.name,
+        role='roles/storage.admin',
+        member=pulumi.Output.concat('serviceAccount:', ANALYSIS_RUNNER_SERVICE_ACCOUNT),
+    )
 
     # Permissions increase by access level:
     # - test: view / create on any "test" bucket

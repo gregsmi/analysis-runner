@@ -1,5 +1,6 @@
 {
     "acute-care": [
+        "automated-interpretation-pipeline",
         "fewgenomes",
         "gatk-sv",
         "rare-disease",
@@ -9,12 +10,26 @@
     "ancestry": [
         "ancestry"
     ],
+    "brain-malf": [
+        "sample-metadata",
+        "rare-disease"
+    ],
     "circa": [
         "sample-metadata"
     ],
+    "constraint": [
+        "sample-metadata",
+        "structural-constraint"
+    ],
+    "epileptic-enceph": [
+        "sample-metadata",
+        "rare-disease"
+    ],
     "fewgenomes": [
+        "automated-interpretation-pipeline",
         "analysis-runner",
         "fewgenomes",
+        "images",
         "joint-calling",
         "production-pipelines",
         "rare-disease",
@@ -27,6 +42,9 @@
     "heartkids": [
         "sample-metadata"
     ],
+    "hereditary-neuro": [
+        "sample-metadata"
+    ],
     "hgdp": [
         "hgdp"
     ],
@@ -35,8 +53,16 @@
         "cromwell-kccg-mutect2-chip",
         "analysis-runner"
     ],
+    "leukodystrophies": [
+        "sample-metadata",
+        "rare-disease"
+    ],
     "mgrb": [
         "sample-metadata"
+    ],
+    "mito-disease": [
+        "sample-metadata",
+        "rare-disease"
     ],
     "nagim": [
         "sample-metadata"
@@ -50,14 +76,30 @@
     "perth-neuro": [
         "sample-metadata"
     ],
+    "prophecy": [
+        "sample-metadata",
+        "production-pipelines",
+        "joint-calling",
+        "gatk-sv"
+    ],
+    "ravenscroft-arch": [
+        "sample-metadata"
+    ],
     "ravenscroft-rdstudy": [
         "sample-metadata"
     ],
     "rdnow": [],
+    "schr-neuro": [
+        "sample-metadata"
+    ],
     "seqr": [
         "hail-elasticsearch-pipelines",
         "sample-metadata",
         "production-pipelines"
+    ],
+    "sgs-somatic-mtn": [
+        "sample-metadata",
+        "sgs-somatic-mutation"
     ],
     "thousand-genomes": [
         "analysis-runner",
@@ -75,12 +117,5 @@
         "sv-workflows",
         "production-pipelines",
         "sample-metadata"
-    ],
-    "schr-neuro": [
-        "sample-metadata"
-    ],
-    "sgs-somatic-mtn": [
-        "sample-metadata",
-        "sgs-somatic-mutation"
     ]
 }
