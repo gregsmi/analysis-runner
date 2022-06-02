@@ -12,13 +12,13 @@ from cpg_utils.config import get_server_config
 from cromwell import add_cromwell_routes
 from util import (
     DRIVER_IMAGE,
-    IMAGE_REGISTRY_PREFIX,
     REFERENCE_PREFIX,
-    WEB_URL_TEMPLATE,
     _get_hail_version,
     add_analysis_metadata,
     get_analysis_runner_metadata,
     get_email_from_request,
+    get_registry_prefix,
+    get_web_url_template,
     run_batch_job_and_print_url,
     update_dict,
     validate_dataset_access,
@@ -69,7 +69,7 @@ async def index(request):
         raise web.HTTPBadRequest(reason=f'Invalid access level "{access_level}"')
 
     is_test = access_level == 'test'
-    if not validate_image(image, is_test):
+    if not is_test and not validate_image(image):
         raise web.HTTPBadRequest(reason=f'Invalid image "{image}"')
 
     hail_bucket = f'cpg-{dataset}-hail'
@@ -112,10 +112,10 @@ async def index(request):
                 'dataset': dataset,
                 'dataset_gcp_project': dataset_gcp_project,
                 'driver_image': DRIVER_IMAGE,
-                'image_registry_prefix': IMAGE_REGISTRY_PREFIX,
+                'image_registry_prefix': get_registry_prefix(),
                 'reference_prefix': REFERENCE_PREFIX,
                 'output_prefix': output_prefix,
-                'web_url_template': WEB_URL_TEMPLATE,
+                'web_url_template': get_web_url_template(),
             },
         },
     )

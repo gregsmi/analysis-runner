@@ -10,26 +10,20 @@ import toml
 from aiohttp import ClientSession, web
 from cloudpathlib import AnyPath
 from cpg_utils.auth import check_dataset_access, get_user_from_headers
-from cpg_utils.config import get_server_config
-from hailtop.config import get_deploy_config
+from cpg_utils.config import get_deploy_config, get_server_config
+from hailtop.config import get_deploy_config as get_hail_deploy_config
 from sample_metadata.apis import AnalysisApi
 
-ALLOWED_CONTAINER_IMAGE_PREFIXES = (
-    'australia-southeast1-docker.pkg.dev/analysis-runner/',
-    'australia-southeast1-docker.pkg.dev/cpg-common/',
-)
 DRIVER_IMAGE = os.getenv('DRIVER_IMAGE')
 assert DRIVER_IMAGE
-IMAGE_REGISTRY_PREFIX = 'australia-southeast1-docker.pkg.dev/cpg-common/images'
 REFERENCE_PREFIX = 'gs://cpg-reference'
 CONFIG_PATH_PREFIX = 'gs://cpg-config'
-WEB_URL_TEMPLATE = 'https://{namespace}-web.populationgenomics.org.au/{dataset}'
 
 
 async def _get_hail_version() -> str:
     """ASYNC get hail version for the hail server in the local deploy_config"""
-    deploy_config = get_deploy_config()
-    url = deploy_config.url('batch', f'/api/v1alpha/version')
+    hail_deploy_config = get_hail_deploy_config()
+    url = hail_deploy_config.url('batch', f'/api/v1alpha/version')
     async with ClientSession() as session:
         async with session.get(url) as resp:
             resp.raise_for_status()
@@ -123,8 +117,8 @@ def run_batch_job_and_print_url(batch, wait):
     """Call batch.run(), return the URL, and wait for job to  finish if wait=True"""
     bc_batch = batch.run(wait=False)
 
-    deploy_config = get_deploy_config()
-    url = deploy_config.url('batch', f'/batches/{bc_batch.id}')
+    hail_deploy_config = get_hail_deploy_config()
+    url = hail_deploy_config.url('batch', f'/batches/{bc_batch.id}')
 
     if wait:
         status = bc_batch.wait()
@@ -147,9 +141,7 @@ def write_metadata_to_bucket(
     bucket_type = ('test' if access_level == 'test' else 'main') + '-analysis'
     blob_path = f'metadata/{output_prefix}/analysis-runner.json'
 
-    script_path = os.path.normpath(
-        os.path.join(os.path.dirname(__file__), 'append_metadata.py')
-    )
+    script_path = os.path.join(os.path.dirname(__file__), 'append_metadata.py')
     with open(script_path, encoding='utf-8') as f:
         script = f.read()
 
@@ -183,13 +175,23 @@ def add_analysis_metadata(metadata: Dict[str, str]) -> None:
     analysis.create_new_analysis(project, analysis_model)
 
 
-def validate_image(container: str, is_test: bool):
+def get_registry_prefix() -> str:
+    deploy_config = get_deploy_config()
+    return f'{deploy_config.container_registry}/cpg-common/images'
+
+
+def get_web_url_template() -> str:
+    deploy_config = get_deploy_config()
+    return deploy_config.web_url_template
+
+
+def validate_image(container: str) -> bool:
     """
     Check that the image is valid for the access_level
     """
-    return is_test or any(
-        container.startswith(prefix) for prefix in ALLOWED_CONTAINER_IMAGE_PREFIXES
-    )
+    registry = get_deploy_config().container_registry
+    allowed = [f'{registry}/{suffix}/' for suffix in ['analysis-runner', 'cpg-common']]
+    return any(container.startswith(prefix) for prefix in allowed)
 
 
 def write_config(config: dict) -> str:
