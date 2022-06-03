@@ -58,6 +58,7 @@ jobs:
     - run: |
         docker build \
           --tag ${AR_DRIVER_IMAGE}:${AR_IMAGE_TAG} --tag ${AR_DRIVER_IMAGE}:latest
+          --build-arg DRIVER_BASE_CR=$AZURE_CR \
           --build-arg HAIL_SHA=$HAIL_SHA \
           -f driver/Dockerfile.hail driver
         docker push ${AR_DRIVER_IMAGE}:${AR_IMAGE_TAG}

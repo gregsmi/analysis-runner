@@ -1,5 +1,6 @@
 # This image adds Hail and some other Python-based stats libraries to the base image.
-FROM australia-southeast1-docker.pkg.dev/analysis-runner/images/driver-base:1.2
+ARG DRIVER_BASE_CR=australia-southeast1-docker.pkg.dev
+FROM $DRIVER_BASE_CR/analysis-runner/images/driver-base:1.2
 
 ARG HAIL_SHA
 
