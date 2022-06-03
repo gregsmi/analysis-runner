@@ -35,8 +35,8 @@ jobs:
         username: ${{ env.CLIENT_ID }}
         password: ${{ env.CLIENT_PWD }}
     - run: |
-        docker build --tag ${ARW_DOCKER_IMAGE}:${{ env.SHORT_SHA }} --tag ${ARW_DOCKER_IMAGE}:latest web
-        docker push ${ARW_DOCKER_IMAGE}:${{ env.SHORT_SHA }}
+        docker build --tag ${ARW_DOCKER_IMAGE}:${SHORT_SHA} --tag ${ARW_DOCKER_IMAGE}:latest web
+        docker push ${ARW_DOCKER_IMAGE}:${SHORT_SHA}
         docker push ${ARW_DOCKER_IMAGE}:latest
 
     - name: 'Login via Azure CLI'

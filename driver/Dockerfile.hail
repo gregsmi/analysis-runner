@@ -29,9 +29,9 @@ RUN apt update && \
         bokeh \
         cloudpathlib[all] \
         cpg-pipes \
-        cpg-utils \
+        cpg-utils-ms \
         phantomjs \
-        sample-metadata \
+        sample-metadata-ms \
         selenium \
         statsmodels && \
     # Install Hail from the CPG fork.
