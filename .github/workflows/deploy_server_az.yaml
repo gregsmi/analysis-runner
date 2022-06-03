@@ -34,13 +34,14 @@ jobs:
     - name: 'Set deployment location variables'
       run: |
         CONFIG_FILE=deploy-config.$DEPLOYMENT_TYPE.json
-        echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+        SHORT_SHA=$(git rev-parse --short HEAD)
 
         # Set up container registry authentication for image push.
         AZURE_CR=$(jq -r .container_registry $CONFIG_FILE)
         echo "CLIENT_ID=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.clientId')" >> $GITHUB_ENV
         echo "CLIENT_PWD=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.clientSecret')" >> $GITHUB_ENV
         echo "AZURE_CR=$AZURE_CR" >> $GITHUB_ENV
+        echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_ENV
 
         # Set up analyis-runner image names and web endpoints.
         echo "AR_DRIVER_IMAGE=$AZURE_CR/analysis-runner/images/driver" >> $GITHUB_ENV
