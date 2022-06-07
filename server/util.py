@@ -10,7 +10,7 @@ import toml
 from aiohttp import ClientSession, web
 from cloudpathlib import AnyPath
 from cpg_utils.auth import check_dataset_access, get_user_from_headers
-from cpg_utils.config import get_deploy_config, get_server_config
+from cpg_utils.deploy_config import get_deploy_config, get_server_config
 from hailtop.config import get_deploy_config as get_hail_deploy_config
 from sample_metadata.apis import AnalysisApi
 

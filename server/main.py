@@ -7,7 +7,7 @@ from shlex import quote
 import hailtop.batch as hb
 from aiohttp import web
 from analysis_runner.git import prepare_git_job
-from cpg_utils.config import get_server_config
+from cpg_utils.deploy_config import get_server_config
 
 from cromwell import add_cromwell_routes
 from util import (
@@ -31,7 +31,7 @@ from cpg_utils.hail_batch import remote_tmpdir
 
 logging.basicConfig(level=logging.INFO)
 # do it like this so it's easy to disable
-USE_GCP_LOGGING = True
+USE_GCP_LOGGING = False
 if USE_GCP_LOGGING:
     import google.cloud.logging  # pylint: disable=import-error,no-name-in-module,c-extension-no-member
 
