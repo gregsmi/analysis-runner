@@ -2,22 +2,19 @@
 Utility methods for analysis-runner server
 """
 import os
-import uuid
 from shlex import quote
 from typing import Any, Dict
 
-import toml
 from aiohttp import ClientSession, web
-from cloudpathlib import AnyPath
 from cpg_utils.auth import check_dataset_access, get_user_from_headers
 from cpg_utils.deploy_config import get_deploy_config, get_server_config
+from cpg_utils.storage import set_job_config
 from hailtop.config import get_deploy_config as get_hail_deploy_config
 from sample_metadata.apis import AnalysisApi
 
 DRIVER_IMAGE = os.getenv('DRIVER_IMAGE')
 assert DRIVER_IMAGE
 REFERENCE_PREFIX = 'gs://cpg-reference'
-CONFIG_PATH_PREFIX = 'gs://cpg-config'
 
 
 async def _get_hail_version() -> str:
@@ -196,10 +193,7 @@ def validate_image(container: str) -> bool:
 
 def write_config(config: dict) -> str:
     """Writes the given config dictionary to a blob and returns its unique path."""
-    config_path = AnyPath(CONFIG_PATH_PREFIX) / (str(uuid.uuid4()) + '.toml')
-    with config_path.open('w') as f:
-        toml.dump(config, f)
-    return str(config_path)
+    return set_job_config(config)
 
 
 def update_dict(d1: dict, d2: dict) -> None:

@@ -6,7 +6,7 @@ import logging
 from shlex import quote
 import hailtop.batch as hb
 from aiohttp import web
-from analysis_runner.git import prepare_git_job
+from cpg_utils.git import prepare_git_job
 from cpg_utils.deploy_config import get_server_config
 
 from cromwell import add_cromwell_routes
@@ -146,7 +146,13 @@ async def index(request):
     )
 
     job = batch.new_job(name='driver')
-    job = prepare_git_job(job=job, repo_name=repo, commit=commit, is_test=is_test)
+    prepare_git_job(
+        job=job,
+        organisation=repo.split('/')[0],
+        repo_name=repo.split('/')[1],
+        commit=commit,
+        is_test=is_test,
+    )
     write_metadata_to_bucket(
         job,
         access_level=access_level,
