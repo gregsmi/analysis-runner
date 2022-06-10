@@ -267,7 +267,8 @@ async def error_middleware(_, handler):
 
 async def init_func():
     """Initializes the app."""
-    app = web.Application(middlewares=[error_middleware])
+    #    app = web.Application(middlewares=[error_middleware])
+    app = web.Application()
     app.add_routes(routes)
     return app
 
