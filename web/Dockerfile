@@ -4,7 +4,7 @@ ENV PYTHONUNBUFFERED True
 
 RUN pip3 install  \
     cpg-utils-ms \
-    cryptography \
+    cryptography==3.3.2 \
     flask \
     gunicorn
 

@@ -194,13 +194,3 @@ def validate_image(container: str) -> bool:
 def write_config(config: dict) -> str:
     """Writes the given config dictionary to a blob and returns its unique path."""
     return set_job_config(config)
-
-
-def update_dict(d1: dict, d2: dict) -> None:
-    """Updates the d1 dict with the values from the d2 dict recursively in-place."""
-    for k, v2 in d2.items():
-        v1 = d1.get(k)
-        if isinstance(v1, dict) and isinstance(v2, dict):
-            update_dict(v1, v2)
-        else:
-            d1[k] = v2

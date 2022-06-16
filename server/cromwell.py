@@ -10,7 +10,8 @@ import hailtop.batch as hb
 import requests
 from aiohttp import web
 
-from cpg_utils.hail_batch import remote_tmpdir
+from cpg_utils.config import update_dict
+from cpg_utils.storage import remote_tmpdir
 
 from analysis_runner.constants import CROMWELL_URL
 from analysis_runner.cromwell import get_cromwell_oauth_token, run_cromwell_workflow
@@ -26,7 +27,6 @@ from util import (
     get_registry_prefix,
     get_web_url_template,
     run_batch_job_and_print_url,
-    update_dict,
     validate_dataset_access,
     validate_output_dir,
     write_config,
