@@ -11,7 +11,7 @@ import requests
 from aiohttp import web
 
 from cpg_utils.config import update_dict
-from cpg_utils.storage import remote_tmpdir
+from cpg_utils.hail_batch import remote_tmpdir
 
 from analysis_runner.constants import CROMWELL_URL
 from analysis_runner.cromwell import get_cromwell_oauth_token, run_cromwell_workflow
