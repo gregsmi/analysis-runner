@@ -6,9 +6,10 @@ import logging
 from shlex import quote
 import hailtop.batch as hb
 from aiohttp import web
-from cpg_utils.git import prepare_git_job, update_dict
+from cpg_utils.git import prepare_git_job
+from cpg_utils.config import update_dict
 from cpg_utils.deploy_config import get_server_config
-from cpg_utils.storage import remote_tmpdir
+from cpg_utils.storage import get_dataset_bucket_url, remote_tmpdir
 
 from cromwell import add_cromwell_routes
 from util import (
@@ -71,7 +72,7 @@ async def index(request):
     if not is_test and not validate_image(image):
         raise web.HTTPBadRequest(reason=f'Invalid image "{image}"')
 
-    hail_bucket = f'cpg-{dataset}-hail'
+    hail_bucket = get_dataset_bucket_url(dataset, 'hail')
     backend = hb.ServiceBackend(
         billing_project=dataset,
         remote_tmpdir=remote_tmpdir(hail_bucket),
