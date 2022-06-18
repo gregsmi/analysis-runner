@@ -10,6 +10,9 @@ RUN pip install \
     gunicorn \
     protobuf==3.20.1
 
+ARG DRIVER_IMAGE
+ENV DRIVER_IMAGE $DRIVER_IMAGE
+
 # Allow statements and log messages to immediately appear in the Knative logs.
 ENV PYTHONUNBUFFERED 1
 

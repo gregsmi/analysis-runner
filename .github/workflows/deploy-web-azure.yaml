@@ -35,9 +35,8 @@ jobs:
         username: ${{ env.CLIENT_ID }}
         password: ${{ env.CLIENT_PWD }}
     - run: |
-        docker build --tag ${ARW_DOCKER_IMAGE}:${SHORT_SHA} --tag ${ARW_DOCKER_IMAGE}:latest web
+        docker build --tag ${ARW_DOCKER_IMAGE}:${SHORT_SHA} web
         docker push ${ARW_DOCKER_IMAGE}:${SHORT_SHA}
-        docker push ${ARW_DOCKER_IMAGE}:latest
 
     - name: 'Login via Azure CLI'
       uses: azure/login@v1
@@ -48,10 +47,10 @@ jobs:
       uses: azure/webapps-deploy@v2
       with:
         app-name: ${{ env.ARW_MAIN_APP_NAME }}
-        images: '${{ env.ARW_DOCKER_IMAGE }}:latest'
+        images: '${{ env.ARW_DOCKER_IMAGE }}:${{ env.SHORT_SHA }}'
 
     - name: 'Deploy AR test web image to web app'
       uses: azure/webapps-deploy@v2
       with:
         app-name: ${{ env.ARW_TEST_APP_NAME }}
-        images: '${{ env.ARW_DOCKER_IMAGE }}:latest'
+        images: '${{ env.ARW_DOCKER_IMAGE }}:${{ env.SHORT_SHA }}'

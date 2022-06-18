@@ -1,4 +1,4 @@
-name: Deploy analysis-runner server to Azure
+name: Deploy server to Azure
 on:
   workflow_dispatch:
     inputs:
@@ -57,12 +57,11 @@ jobs:
         password: ${{ env.CLIENT_PWD }}
     - run: |
         docker build \
-          --tag ${AR_DRIVER_IMAGE}:${AR_IMAGE_TAG} --tag ${AR_DRIVER_IMAGE}:latest \
+          --tag ${AR_DRIVER_IMAGE}:${AR_IMAGE_TAG} \
           --build-arg DRIVER_BASE_CR=$AZURE_CR \
           --build-arg HAIL_SHA=$HAIL_SHA \
           -f driver/Dockerfile.hail driver
         docker push ${AR_DRIVER_IMAGE}:${AR_IMAGE_TAG}
-        docker push ${AR_DRIVER_IMAGE}:latest
 
     - name: 'Build and push server image'
       uses: azure/docker-login@v1
@@ -72,11 +71,10 @@ jobs:
         password: ${{ env.CLIENT_PWD }}
     - run: |
         docker build \
-          --tag ${AR_SERVER_IMAGE}:${AR_IMAGE_TAG} --tag ${AR_SERVER_IMAGE}:latest \
+          --tag ${AR_SERVER_IMAGE}:${AR_IMAGE_TAG} \
           --build-arg DRIVER_IMAGE=${AR_DRIVER_IMAGE}:${AR_IMAGE_TAG} \
           server
         docker push ${AR_SERVER_IMAGE}:${AR_IMAGE_TAG}
-        docker push ${AR_SERVER_IMAGE}:latest
 
     # - name: "deploy server-test"
     #   run: |
@@ -91,4 +89,4 @@ jobs:
       uses: azure/webapps-deploy@v2
       with:
         app-name: ${{ env.AR_APP_NAME }}
-        images: '${{ env.AR_SERVER_IMAGE }}:latest'
+        images: '${{ env.AR_SERVER_IMAGE }}:${{ env.AR_IMAGE_TAG }}'
