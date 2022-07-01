@@ -144,7 +144,7 @@ def write_metadata_to_bucket(
 
     job.command(f'echo {quote(script)} > append_metadata.py')
     job.command(
-        f'python3 append_metadata.py '
+        f'python append_metadata.py '
         f'{dataset} {bucket_type} {blob_path} {quote(metadata_str)}'
     )
 
