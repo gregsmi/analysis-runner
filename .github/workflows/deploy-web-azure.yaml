@@ -1,4 +1,4 @@
-name: Deploy web server to Azure
+name: Azure Web Deploy
 on: workflow_dispatch
 jobs:
   deploy_server:
