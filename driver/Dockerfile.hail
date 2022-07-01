@@ -32,6 +32,7 @@ RUN apt update && \
         cpg-pipes \
         cpg-utils-ms \
         phantomjs \
+        pyarrow \
         sample-metadata-ms \
         selenium \
         statsmodels && \
