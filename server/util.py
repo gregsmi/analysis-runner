@@ -142,9 +142,12 @@ def write_metadata_to_bucket(
     with open(script_path, encoding='utf-8') as f:
         script = f.read()
 
+    job.command(f'pwd')
+    job.command(f'which python3')
+    job.command(f'which python')
     job.command(f'echo {quote(script)} > append_metadata.py')
     job.command(
-        f'python append_metadata.py '
+        f'python3 append_metadata.py '
         f'{dataset} {bucket_type} {blob_path} {quote(metadata_str)}'
     )
 
