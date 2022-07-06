@@ -34,7 +34,7 @@ jobs:
     - name: 'Set deployment location variables'
       run: |
         CONFIG_FILE=deploy-config.$DEPLOYMENT_TYPE.json
-        echo "CPG_DEPLOY_CONFIG=$(<$CONFIG_FILE)" >> $GITHUB_ENV
+        echo "CPG_DEPLOY_CONFIG=$(cat $CONFIG_FILE | tr -s '\n' ' ')" >> $GITHUB_ENV
         SHORT_SHA=$(git rev-parse --short HEAD)
 
         # Set up container registry authentication for image push.
