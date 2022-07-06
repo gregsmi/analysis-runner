@@ -7,9 +7,9 @@ from shlex import quote
 import hailtop.batch as hb
 from aiohttp import web
 from cpg_utils.git import prepare_git_job
-from cpg_utils.config import update_dict
 from cpg_utils.deploy_config import get_server_config
-from cpg_utils.storage import get_dataset_bucket_url, remote_tmpdir
+from cpg_utils.job_config import remote_tmpdir, update_dict
+from cpg_utils.storage import get_dataset_bucket_url
 
 from cromwell import add_cromwell_routes
 from util import (

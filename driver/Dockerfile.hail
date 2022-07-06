@@ -4,6 +4,9 @@ FROM $DRIVER_BASE_CR/analysis-runner/images/driver-base:1.2
 
 ARG HAIL_SHA
 
+ARG CPG_DEPLOY_CONFIG
+ENV CPG_DEPLOY_CONFIG $CPG_DEPLOY_CONFIG
+
 ENV HAIL_QUERY_BACKEND service \
     TZ=Australia
 

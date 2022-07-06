@@ -8,7 +8,7 @@ from typing import Any, Dict
 from aiohttp import ClientSession, web
 from cpg_utils.auth import check_dataset_access, get_user_from_headers
 from cpg_utils.deploy_config import get_deploy_config, get_server_config
-from cpg_utils.storage import set_job_config
+from cpg_utils.job_config import set_job_config
 from hailtop.config import get_deploy_config as get_hail_deploy_config
 from sample_metadata.apis import AnalysisApi
 
@@ -142,9 +142,6 @@ def write_metadata_to_bucket(
     with open(script_path, encoding='utf-8') as f:
         script = f.read()
 
-    job.command(f'pwd')
-    job.command(f'which python3')
-    job.command(f'which python')
     job.command(f'echo {quote(script)} > append_metadata.py')
     job.command(
         f'python3 append_metadata.py '
