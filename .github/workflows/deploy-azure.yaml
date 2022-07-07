@@ -48,7 +48,7 @@ jobs:
         echo "AR_DRIVER_IMAGE=$AZURE_CR/analysis-runner/images/driver" >> $GITHUB_ENV
         echo "AR_SERVER_IMAGE=$AZURE_CR/analysis-runner/images/server" >> $GITHUB_ENV
         echo "AR_IMAGE_TAG=${SHORT_SHA}-hail-${HAIL_SHA}" >> $GITHUB_ENV
-        echo "AR_APP_NAME=main-web-$(jq -r .analysis_runner_project $CONFIG_FILE)" >> $GITHUB_ENV
+        echo "AR_APP_NAME=arapi-$(jq -r .analysis_runner_project $CONFIG_FILE)" >> $GITHUB_ENV
 
     - name: 'Build and push driver image'
       uses: azure/docker-login@v1
