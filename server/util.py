@@ -170,6 +170,7 @@ def add_analysis_metadata(metadata: Dict[str, str]) -> None:
 
     analysis = AnalysisApi()
     analysis.create_new_analysis(project, analysis_model)
+    # TODO GRS update airtable as well
 
 
 def get_registry_prefix() -> str:
