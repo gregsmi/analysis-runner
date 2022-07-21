@@ -6,9 +6,16 @@
         "rare-disease",
         "sample-metadata"
     ],
+    "ag-hidden": [
+        "sample-metadata",
+        "rare-disease"
+    ],
     "amp-pd": [],
     "ancestry": [
         "ancestry"
+    ],
+    "bioheart": [
+        "sample-metadata"
     ],
     "brain-malf": [
         "automated-interpretation-pipeline",
@@ -42,6 +49,9 @@
     "flinders-ophthal": [
         "sample-metadata"
     ],
+    "gtex": [
+        "sample-metadata"
+    ],
     "heartkids": [
         "sample-metadata"
     ],
@@ -52,15 +62,25 @@
     "hgdp": [
         "hgdp"
     ],
+    "ibmdx": [
+        "sample-metadata"
+    ],
     "kccg-genomics-med": [
         "sample-metadata",
         "cromwell-kccg-mutect2-chip",
         "analysis-runner"
     ],
+    "kidgen": [
+        "sample-metadata",
+        "rare-disease"
+    ],
     "leukodystrophies": [
         "automated-interpretation-pipeline",
         "sample-metadata",
         "rare-disease"
+    ],
+    "mcri-lrp": [
+        "sample-metadata"
     ],
     "mgrb": [
         "sample-metadata"
@@ -132,6 +152,10 @@
         "sv-workflows",
         "production-pipelines",
         "sample-metadata"
+    ],
+    "tx-adapt": [
+        "sample-metadata",
+        "tx-adapt"
     ],
     "validation": [
         "sample-metadata",
