@@ -5,6 +5,7 @@ import logging
 import re
 
 import requests
+from cpg_utils.creds import get_analysis_runner_token
 
 from analysis_runner._version import __version__
 
@@ -105,17 +106,10 @@ def confirm_choice(choice: str):
 
 def get_google_identity_token() -> str:
     """
-    Get google identity token, equivalent of calling:
-        ['gcloud', 'auth', 'print-identity-token']
+    Get cloud-specific bearer token for accessing analysis-runner.
+    TODO GRS change name
     """
-    import google.auth
-    import google.auth.transport.requests
-
-    # https://stackoverflow.com/a/55804230
-    creds, _ = google.auth.default()
-    auth_req = google.auth.transport.requests.Request()
-    creds.refresh(auth_req)
-    return creds.id_token
+    return get_analysis_runner_token()
 
 
 def _perform_version_check():

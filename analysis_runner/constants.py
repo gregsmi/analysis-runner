@@ -1,4 +1,7 @@
+from cpg_utils.deploy_config import get_deploy_config
+
 """Constants for analysis-runner"""
+
 
 SERVER_ENDPOINT = 'https://server-a2pko7ameq-ts.a.run.app'
 SERVER_TEST_ENDPOINT = 'https://server-test-a2pko7ameq-ts.a.run.app'
@@ -18,6 +21,7 @@ def get_server_endpoint(is_test: bool = False):
     Do it in a function so it's easy to fix if the logic changes
     """
     if is_test:
+        # TODO GRS configure test endpoint
         return SERVER_TEST_ENDPOINT
 
-    return SERVER_ENDPOINT
+    return get_deploy_config().analysis_runner_host

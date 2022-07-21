@@ -8,7 +8,8 @@ import subprocess
 from shlex import quote
 
 GITHUB_ORG = 'populationgenomics'
-SUPPORTED_ORGANIZATIONS = {GITHUB_ORG}
+SUPPORTED_ORGANIZATIONS = {GITHUB_ORG, 'gregsmi'}
+# TODO GRS add org to deploy config or datasets or remove?
 
 
 def get_output_of_command(command: List[str], description: str) -> str:
@@ -112,7 +113,7 @@ def get_repo_name_from_remote(remote_name: str) -> str:
     if repo.endswith('.git'):
         repo = repo[:-4]
 
-    return repo
+    return f'{organization}/{repo}'
 
 
 def check_if_commit_is_on_remote(commit: str) -> bool:
