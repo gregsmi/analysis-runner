@@ -1,0 +1,42 @@
+name: Package
+on:
+  pull_request:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - uses: actions/checkout@main
+
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.10'
+
+      - name: Build
+        run: python setup.py sdist
+
+      # - name: Test install
+      #   run: pip install dist/*
+
+      # - name: Test with pytest
+      #   run: |
+      #     pip install pytest
+      #     pip install pytest-cov
+      #     pytest
+
+      - name: Publish the wheel to PyPI
+        # Run when merging into main with a commit that starts with "Bump version:"
+        # OR where the workflow was manually dispatched:
+        if: "${{ startsWith(github.event.head_commit.message, 'Bump version:') || github.event_name == 'workflow_dispatch' }}"
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          packages_dir: dist/

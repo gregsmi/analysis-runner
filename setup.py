@@ -6,7 +6,7 @@ Setup script for the Python package.
 
 import setuptools
 
-PKG = 'analysis-runner'
+PKG = 'analysis-runner-ms'
 
 
 def read_file(filename: str) -> str:
@@ -18,7 +18,7 @@ def read_file(filename: str) -> str:
 setuptools.setup(
     name=PKG,
     # This tag is automatically updated by bump2version
-    version='2.32.1',
+    version='0.9.1',
     description='Analysis runner to help make analysis results reproducible',
     long_description=read_file('README.md'),
     long_description_content_type='text/markdown',
