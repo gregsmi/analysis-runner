@@ -29,7 +29,7 @@ RUN apt update && \
     curl -sS https://bootstrap.pypa.io/get-pip.py | python3.10 && \
     rm $(which python3) && ln $(which python3.10) /usr/bin/python3 && \
     pip --no-cache-dir install \
-        analysis-runner \
+        analysis-runner-ms \
         bokeh \
         cloudpathlib[all] \
         cpg-utils-ms \
