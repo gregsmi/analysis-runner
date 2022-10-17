@@ -31,10 +31,25 @@ The analysis-runner is also integrated with our Cromwell server to run WDL based
 ## CLI
 
 The analysis-runner CLI can be used to start pipelines based on a GitHub repository,
-commit, and command to run. To install it, use pip:
+commit, and command to run.
+
+First, make sure that your environment provides Python 3.10 or newer:
+
+```sh
+> python3 --version
+Python 3.10.7
+```
+
+If the installed version is too old, on a Mac you can use `brew` to update. E.g.:
+
+```sh
+brew install python@3.10
+```
+
+Then install the `analysis-runner` Python package using `pip`:
 
 ```bash
-pip install analysis-runner
+python3 -m pip install analysis-runner
 ```
 
 Run `analysis-runner --help` to see usage information.
@@ -140,10 +155,6 @@ cluster.add_job('examples/dataproc/query.py', job_name='example')
 ## Development
 
 You can ignore this section if you just want to run the tool.
-
-To bring up a stack corresponding to a dataset as described in the
-[storage policies](https://github.com/populationgenomics/team-docs/tree/main/storage_policies),
-see the [stack](stack) directory.
 
 To set up a development environment for the analysis runner using pip, run
 the following:

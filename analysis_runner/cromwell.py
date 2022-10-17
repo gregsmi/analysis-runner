@@ -11,6 +11,8 @@ import inspect
 from shlex import quote
 from typing import List, Dict, Optional, Any
 from cpg_utils.config import get_config
+from hailtop.batch import Resource
+from hailtop.batch.job import Job
 from analysis_runner.constants import (
     CROMWELL_URL,
     ANALYSIS_RUNNER_PROJECT_ID,
@@ -244,7 +246,7 @@ def run_cromwell_workflow_from_repo_and_get_outputs(
     cwd: Optional[str] = None,
     driver_image: Optional[str] = None,
     project: Optional[str] = None,
-):
+) -> tuple[Job, dict[str, Resource]]:
     """
     This function needs to know the structure of the outputs you
     want to collect. It currently only supports:
@@ -258,6 +260,8 @@ def run_cromwell_workflow_from_repo_and_get_outputs(
 
     If the starts with "gs://", we'll copy it as a resource file,
     otherwise write the value into a file which will be a batch resource.
+
+    Returns a submit Job object, and a dict of output Resource objects.
     """
     _driver_image = driver_image or os.getenv('DRIVER_IMAGE')
 
@@ -292,7 +296,7 @@ def run_cromwell_workflow_from_repo_and_get_outputs(
         driver_image=_driver_image,
     )
 
-    return outputs_dict
+    return submit_job, outputs_dict
 
 
 def watch_workflow(
@@ -304,7 +308,7 @@ def watch_workflow(
 ):
     """
     INNER Python function to watch workflow status, and write
-    output paths `output_json_path` on success.
+    output paths to output_json_path on success.
     """
     # Re-importing dependencies here so the function is self-contained
     # and can be run in a Hail bash job.
@@ -355,7 +359,7 @@ def watch_workflow(
         workflow_id = f.read().strip()
     logger.info(f'Received workflow ID: {workflow_id}')
 
-    final_statuses = {'failed', 'aborted'}
+    failed_statuses = {'failed', 'aborted'}
     subprocess.check_output(GCLOUD_ACTIVATE_AUTH, shell=True)
     url = f'https://cromwell.populationgenomics.org.au/api/workflows/v1/{workflow_id}/status'
     _remaining_exceptions = max_sequential_exception_count
@@ -395,12 +399,14 @@ def watch_workflow(
                         'Received error when fetching cromwell outputs, '
                         'will retry in 15 seconds'
                     )
+                    time.sleep(wait_time)
                     continue
                 outputs = r_outputs.json()
                 logger.info(f'Received outputs from Cromwell: {outputs}')
                 with to_anypath(output_json_path).open('w') as fh:
                     json.dump(outputs.get('outputs'), fh)
-            if status.lower() in final_statuses:
+                break
+            if status.lower() in failed_statuses:
                 logger.error(f'Got failed cromwell status: {status}')
                 raise CromwellError(status)
             logger.info(f'Got cromwell status: {status} (sleeping={wait_time})')
@@ -451,6 +457,7 @@ def watch_workflow_and_get_output(
     _driver_image = driver_image or os.getenv('DRIVER_IMAGE')
 
     watch_job = b.new_job(job_prefix + '_watch')
+    watch_job.cpu(0.25)
 
     watch_job.env('GOOGLE_APPLICATION_CREDENTIALS', '/gsa-key/key.json')
     watch_job.env('PYTHONUNBUFFERED', '1')  # makes the logs go quicker

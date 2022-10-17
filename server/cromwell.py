@@ -30,7 +30,6 @@ from util import (
     validate_dataset_access,
     validate_output_dir,
     write_config,
-    write_metadata_to_bucket,
 )
 
 
@@ -156,13 +155,6 @@ def add_cromwell_routes(
             is_test=access_level == 'test',
         )
 
-        write_metadata_to_bucket(
-            job,
-            access_level=access_level,
-            dataset=dataset,
-            output_prefix=output_dir,
-            metadata_str=json.dumps(metadata),
-        )
         job.image(DRIVER_IMAGE)
 
         job.env('CPG_CONFIG_PATH', config_path)

@@ -26,7 +26,6 @@ from util import (
     validate_image,
     validate_output_dir,
     write_config,
-    write_metadata_to_bucket,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -59,6 +58,7 @@ async def index(request):
     image = params.get('image') or DRIVER_IMAGE
     cpu = params.get('cpu', 1)
     memory = params.get('memory', '1G')
+    preemptible = params.get('preemptible', True)
     environment_variables = params.get('environmentVariables')
 
     ds_config = validate_dataset_access(dataset, email, repo)
@@ -153,18 +153,12 @@ async def index(request):
         commit=commit,
         is_test=is_test,
     )
-    write_metadata_to_bucket(
-        job,
-        access_level=access_level,
-        dataset=dataset,
-        output_prefix=output_prefix,
-        metadata_str=json.dumps(metadata),
-    )
     job.image(image)
     if cpu:
         job.cpu(cpu)
     if memory:
         job.memory(memory)
+    job._preemptible = preemptible  # pylint: disable=protected-access
 
     # NOTE: Prefer using config variables instead of environment variables.
     # In case you need to add an environment variable here, make sure to update the

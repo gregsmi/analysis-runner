@@ -14,6 +14,9 @@ BRANCH = 'main'
 logger = logging.getLogger('analysis_runner')
 logger.addHandler(logging.StreamHandler())
 logger.setLevel(logging.INFO)
+# Also update the default severity level for modules that don't use the
+# 'analysis-runner' logger.
+logging.getLogger().setLevel(logging.INFO)
 
 
 def get_project_id_from_service_account_email(service_account_email: str) -> str:
@@ -102,14 +105,6 @@ def confirm_choice(choice: str):
             return False
 
         print('Unrecognised option, please try again.')
-
-
-def get_google_identity_token() -> str:
-    """
-    Get cloud-specific bearer token for accessing analysis-runner.
-    TODO GRS change name
-    """
-    return get_analysis_runner_token()
 
 
 def _perform_version_check():

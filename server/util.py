@@ -2,10 +2,8 @@
 Utility methods for analysis-runner server
 """
 import os
+import json
 import uuid
-from shlex import quote
-from typing import Any, Dict
-
 import toml
 from aiohttp import ClientSession, web
 from cloudpathlib import AnyPath
@@ -186,7 +184,7 @@ def get_web_url_template() -> str:
     return f'https://{{namespace}}-{deploy_config.web_host_base}/{{dataset}}'
 
 
-def validate_image(container: str) -> bool:
+def validate_image(container: str, is_test: bool) -> bool:
     """
     Check that the image is valid for the access_level
     """

@@ -7,25 +7,29 @@ ARG HAIL_SHA
 ARG CPG_DEPLOY_CONFIG
 ENV CPG_DEPLOY_CONFIG $CPG_DEPLOY_CONFIG
 
-ENV HAIL_QUERY_BACKEND service \
-    TZ=Australia
+ENV HAIL_QUERY_BACKEND service
 
-RUN apt update && \
-    DEBIAN_FRONTEND=noninteractive apt install -y \
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
+        build-essential \
+        curl \
         g++ \
+        gcc \
+        libfontconfig \
         liblapack3 \
         libopenblas-base \
         openjdk-8-jdk-headless \
-        python3-pip \
         rsync \
-        software-properties-common \
-        gcc \
-        build-essential \
-        curl && \
+        software-properties-common && \
+    add-apt-repository ppa:deadsnakes/ppa -y && \
+    apt-get install -y \
+        python3-apt \
+        python3-cffi \
+        python3.10 \
+        python3.10-dev \
+        python3.10-distutils && \
     rm -r /var/lib/apt/lists/* && \
     rm -r /var/cache/apt/* && \
-    add-apt-repository ppa:deadsnakes/ppa -y && \
-    apt-get install -y --no-install-recommends python3.10 python3.10-distutils python3-apt python3.10-dev  && \
     curl -sS https://bootstrap.pypa.io/get-pip.py | python3.10 && \
     rm $(which python3) && ln $(which python3.10) /usr/bin/python3 && \
     pip --no-cache-dir install \
@@ -33,11 +37,18 @@ RUN apt update && \
         bokeh \
         cloudpathlib[all] \
         cpg-utils-ms \
-        phantomjs \
+        gcsfs \
         pyarrow \
         sample-metadata-ms \
-        selenium \
+        selenium==3.8.0 \
         statsmodels && \
+    # Install phantomjs with a workaround for libssl_conf.so:
+    # https://github.com/bazelbuild/rules_closure/issues/351#issuecomment-854628326
+    cd /opt && \
+    curl -sSL https://bitbucket.org/ariya/phantomjs/downloads/phantomjs-2.1.1-linux-x86_64.tar.bz2 | tar xj && \
+    cd .. && \
+    printf '#!/bin/bash\nexport OPENSSL_CONF=/dev/null\n/opt/phantomjs-2.1.1-linux-x86_64/bin/phantomjs "$@"\n' > /usr/local/bin/phantomjs && \
+    chmod +x /usr/local/bin/phantomjs && \
     # Install Hail from the CPG fork.
     git clone https://github.com/populationgenomics/hail.git && \
     cd hail && \
