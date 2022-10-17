@@ -2,13 +2,16 @@
 Utility methods for analysis-runner server
 """
 import os
+import uuid
 from shlex import quote
 from typing import Any, Dict
 
+import toml
 from aiohttp import ClientSession, web
+from cloudpathlib import AnyPath
 from cpg_utils.auth import check_dataset_access, get_user_from_headers
 from cpg_utils.deploy_config import get_deploy_config, get_server_config
-from cpg_utils.job_config import set_job_config
+from cpg_utils.storage import get_dataset_bucket_url
 from hailtop.config import get_deploy_config as get_hail_deploy_config
 from sample_metadata.apis import AnalysisApi
 
@@ -180,7 +183,7 @@ def get_registry_prefix() -> str:
 
 def get_web_url_template() -> str:
     deploy_config = get_deploy_config()
-    return deploy_config.web_url_template
+    return f'https://{{namespace}}-{deploy_config.web_host_base}/{{dataset}}'
 
 
 def validate_image(container: str) -> bool:
@@ -194,4 +197,10 @@ def validate_image(container: str) -> bool:
 
 def write_config(config: dict) -> str:
     """Writes the given config dictionary to a blob and returns its unique path."""
-    return set_job_config(config)
+    # get_config will recognize this section and load the deployment config.
+    config['CPG_DEPLOY_CONFIG'] = get_deploy_config().to_dict()
+    config_bucket = get_dataset_bucket_url(None, 'config')
+    config_path = AnyPath(config_bucket) / (str(uuid.uuid4()) + '.toml')
+    with config_path.open('w') as f:
+        toml.dump(config, f)
+    return str(config_path)
