@@ -9,7 +9,7 @@ from typing import List
 
 import requests
 from cpg_utils.config import read_configs
-from cpg_utils.cloud import get_google_identity_token
+from cpg_utils.creds import get_analysis_runner_token
 from analysis_runner.constants import get_server_endpoint
 from analysis_runner.git import (
     get_git_default_remote,
@@ -200,13 +200,12 @@ def run_analysis_runner(  # pylint: disable=too-many-arguments
     if config:
         _config = dict(read_configs(config))
 
-    server_endpoint = get_server_endpoint(is_test=use_test_server)
-    _token = get_google_identity_token(server_endpoint)
+    _token = get_analysis_runner_token()
 
     logger.info(f'Submitting {_repository}@{_commit_ref} for dataset "{dataset}"')
 
     response = requests.post(
-        server_endpoint,
+        get_server_endpoint(is_test=use_test_server),
         json={
             'dataset': dataset,
             'output': output_dir,

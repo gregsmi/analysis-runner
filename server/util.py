@@ -2,8 +2,9 @@
 Utility methods for analysis-runner server
 """
 import os
-import json
 import uuid
+from typing import Any, Dict
+
 import toml
 from aiohttp import ClientSession, web
 from cloudpathlib import AnyPath
@@ -124,30 +125,6 @@ def run_batch_job_and_print_url(batch, wait):
             raise web.HTTPBadRequest(reason=f'{url} failed')
 
     return url
-
-
-def write_metadata_to_bucket(
-    job, access_level: str, dataset: str, output_prefix: str, metadata_str: str
-):
-    """
-    Copy analysis-runner.json to the metadata bucket
-
-    Append metadata information, in case the same
-    output directory gets used multiple times.
-    """
-
-    bucket_type = ('test' if access_level == 'test' else 'main') + '-analysis'
-    blob_path = f'metadata/{output_prefix}/analysis-runner.json'
-
-    script_path = os.path.join(os.path.dirname(__file__), 'append_metadata.py')
-    with open(script_path, encoding='utf-8') as f:
-        script = f.read()
-
-    job.command(f'echo {quote(script)} > append_metadata.py')
-    job.command(
-        f'python3 append_metadata.py '
-        f'{dataset} {bucket_type} {blob_path} {quote(metadata_str)}'
-    )
 
 
 def add_analysis_metadata(metadata: Dict[str, str]) -> None:
