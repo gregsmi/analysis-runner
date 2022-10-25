@@ -49,8 +49,8 @@ RUN apt-get update && \
     cd .. && \
     printf '#!/bin/bash\nexport OPENSSL_CONF=/dev/null\n/opt/phantomjs-2.1.1-linux-x86_64/bin/phantomjs "$@"\n' > /usr/local/bin/phantomjs && \
     chmod +x /usr/local/bin/phantomjs && \
-    # Install Hail from the CPG fork.
-    git clone https://github.com/populationgenomics/hail.git && \
+    # Install Hail from the MSFT fork.
+    git clone https://github.com/gregsmi/hail.git && \
     cd hail && \
     git checkout $HAIL_SHA && \
     cd hail && \
