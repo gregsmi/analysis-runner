@@ -21,7 +21,7 @@ jobs:
     - name: "checkout Hail repo"
       uses: actions/checkout@v3
       with:
-        repository: "populationgenomics/hail"
+        repository: "gregsmi/hail"
         ref: ${{ github.event.inputs.hail_ref }}
         path: "hail"
 
