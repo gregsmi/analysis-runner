@@ -19,9 +19,10 @@ from analysis_runner.constants import (
     CROMWELL_AUDIENCE,
     GCLOUD_ACTIVATE_AUTH,
 )
-from analysis_runner.git import (
+from cpg_utils.git import (
     get_git_default_remote,
     get_git_commit_ref_of_current_repository,
+    get_organisation_name_from_remote,
     get_repo_name_from_remote,
     prepare_git_job,
 )
@@ -269,7 +270,8 @@ def run_cromwell_workflow_from_repo_and_get_outputs(
     submit_job.image(_driver_image)
     prepare_git_job(
         job=submit_job,
-        repo_name=(repo or get_repo_name_from_remote(get_git_default_remote())),
+        organisation=repo.split('/')[0] if repo else get_organisation_name_from_remote(get_git_default_remote()),
+        repo_name=repo.split('/')[1] if repo else get_repo_name_from_remote(get_git_default_remote()),
         commit=(commit or get_git_commit_ref_of_current_repository()),
         is_test=access_level == 'test',
     )

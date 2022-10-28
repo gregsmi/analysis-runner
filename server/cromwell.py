@@ -15,7 +15,7 @@ from cpg_utils.hail_batch import remote_tmpdir
 
 from analysis_runner.constants import CROMWELL_URL
 from analysis_runner.cromwell import get_cromwell_oauth_token, run_cromwell_workflow
-from analysis_runner.git import prepare_git_job
+from cpg_utils.git import prepare_git_job
 
 # pylint: disable=wrong-import-order
 from util import (
@@ -149,7 +149,8 @@ def add_cromwell_routes(
         job = batch.new_job(name='driver')
         job = prepare_git_job(
             job=job,
-            repo_name=repo,
+            organisation=repo.split('/')[0],
+            repo_name=repo.split('/')[1],
             commit=commit,
             print_all_statements=False,
             is_test=access_level == 'test',

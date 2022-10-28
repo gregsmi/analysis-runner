@@ -14,6 +14,7 @@ from analysis_runner.constants import get_server_endpoint
 from cpg_utils.git import (
     get_git_default_remote,
     get_git_commit_ref_of_current_repository,
+    get_organisation_name_from_remote,
     get_repo_name_from_remote,
     get_relative_path_from_git_root,
     check_if_commit_is_on_remote,
@@ -166,7 +167,8 @@ def run_analysis_runner(  # pylint: disable=too-many-arguments
             raise SystemExit()
 
     if repository is None:
-        _repository = get_repo_name_from_remote(get_git_default_remote())
+        remote = get_git_default_remote()
+        _repository = f'{get_organisation_name_from_remote(remote)}/{get_repo_name_from_remote(remote)}'
         if _commit_ref is None:
             _commit_ref = get_git_commit_ref_of_current_repository()
 

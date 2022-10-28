@@ -9,9 +9,10 @@ from cpg_utils.config import get_config
 from cpg_utils.hail_batch import Namespace
 import hailtop.batch as hb
 from analysis_runner.constants import GCLOUD_ACTIVATE_AUTH
-from analysis_runner.git import (
+from cpg_utils.git import (
     get_git_default_remote,
     get_git_commit_ref_of_current_repository,
+    get_organisation_name_from_remote,
     get_repo_name_from_remote,
     prepare_git_job,
     get_relative_path_from_git_root,
@@ -281,6 +282,7 @@ def _add_submit_job(
     # Clone the repository to pass scripts to the cluster.
     prepare_git_job(
         job=main_job,
+        organisation=get_organisation_name_from_remote(get_git_default_remote()),
         repo_name=get_repo_name_from_remote(get_git_default_remote()),
         commit=get_git_commit_ref_of_current_repository(),
     )
