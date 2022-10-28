@@ -14,7 +14,8 @@ Test Hail Batch Workflow
 from shlex import quote
 import hailtop.batch as hb
 import click
-from cpg_utils.job_config import get_config, remote_tmpdir
+from cpg_utils.config import get_config
+from cpg_utils.hail_batch import remote_tmpdir
 
 
 @click.command()

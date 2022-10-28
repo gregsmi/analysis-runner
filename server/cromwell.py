@@ -20,10 +20,10 @@ from analysis_runner.git import prepare_git_job
 # pylint: disable=wrong-import-order
 from util import (
     DRIVER_IMAGE,
-    REFERENCE_PREFIX,
     add_analysis_metadata,
     get_analysis_runner_metadata,
     get_email_from_request,
+    get_reference_prefix,
     get_registry_prefix,
     get_web_url_template,
     run_batch_job_and_print_url,
@@ -106,7 +106,7 @@ def add_cromwell_routes(
                     'dataset_gcp_project': project,
                     'driver_image': DRIVER_IMAGE,
                     'image_registry_prefix': get_registry_prefix(),
-                    'reference_prefix': REFERENCE_PREFIX,
+                    'reference_prefix': get_reference_prefix(),
                     'output_prefix': output_dir,
                     'web_url_template': get_web_url_template(),
                 },

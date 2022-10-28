@@ -11,7 +11,7 @@ import requests
 from cpg_utils.cloud import get_google_identity_token
 from analysis_runner.constants import get_server_endpoint, SERVER_ENDPOINT
 from analysis_runner.cromwell_model import WorkflowMetadataModel
-from analysis_runner.git import (
+from cpg_utils.git import (
     get_git_default_remote,
     get_git_commit_ref_of_current_repository,
     get_repo_name_from_remote,
