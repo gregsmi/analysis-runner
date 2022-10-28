@@ -21,7 +21,7 @@ RUN apt-get update && \
     apt-get install -y google-cloud-sdk && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
-    git clone https://github.com/populationgenomics/hail.git && \
+    git clone https://github.com/gregsmi/hail.git && \
     cd hail/hail && \
     make install DEPLOY_REMOTE=1 && \
     cd ../.. && \
