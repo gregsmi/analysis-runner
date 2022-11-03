@@ -2,11 +2,8 @@ FROM python:3.10-slim
 
 ENV PYTHONUNBUFFERED True
 
-RUN pip3 install  \
-    cpg-utils-ms \
-    cryptography==3.3.2 \
-    flask \
-    gunicorn
+COPY requirements.txt ./
+RUN pip3 install -r requirements.txt
 
 COPY main.py ./
 
