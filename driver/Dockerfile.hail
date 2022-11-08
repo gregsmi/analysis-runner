@@ -51,11 +51,12 @@ RUN apt-get update && \
     rm -rf hail && \
     pip --no-cache-dir install \
         analysis-runner-ms \
-        cpg-utils-ms \
-        sample-metadata-ms \
         bokeh \
         cloudpathlib[all] \
+        cpg-utils-ms \
         gcsfs \
+        hail \
         pyarrow \
+        sample-metadata-ms \
         selenium>=3.8.0 \
         statsmodels
