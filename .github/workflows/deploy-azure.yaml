@@ -47,6 +47,7 @@ jobs:
         # Set up analyis-runner image names and web endpoints.
         echo "AR_DRIVER_IMAGE=$AZURE_CR/analysis-runner/images/driver" >> $GITHUB_ENV
         echo "AR_SERVER_IMAGE=$AZURE_CR/analysis-runner/images/server" >> $GITHUB_ENV
+        echo "HAIL_DRIVER_IMAGE=$AZURE_CR/cpg-common/images/hail-driver" >> $GITHUB_ENV
         echo "AR_IMAGE_TAG=${SHORT_SHA}-hail-${HAIL_SHA}" >> $GITHUB_ENV
         echo "AR_APP_NAME=arapi-$(jq -r .analysis_runner_project $CONFIG_FILE)" >> $GITHUB_ENV
 
@@ -59,11 +60,13 @@ jobs:
     - run: |
         docker build \
           --tag ${AR_DRIVER_IMAGE}:${AR_IMAGE_TAG} \
+          --tag ${HAIL_DRIVER_IMAGE}:latest \
           --build-arg DRIVER_BASE_CR=$AZURE_CR \
           --build-arg HAIL_SHA=$HAIL_SHA \
           --build-arg CPG_DEPLOY_CONFIG="$CPG_DEPLOY_CONFIG" \
           -f driver/Dockerfile.hail driver
         docker push ${AR_DRIVER_IMAGE}:${AR_IMAGE_TAG}
+        docker push ${HAIL_DRIVER_IMAGE}:latest
 
     - name: 'Build and push server image'
       uses: azure/docker-login@v1
