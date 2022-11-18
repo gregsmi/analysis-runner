@@ -11,7 +11,9 @@ import requests
 from aiohttp import web
 
 from cpg_utils.config import update_dict
+from cpg_utils.deploy_config import get_server_config
 from cpg_utils.hail_batch import remote_tmpdir
+from cpg_utils.storage import get_dataset_bucket_url
 
 from analysis_runner.constants import CROMWELL_URL
 from analysis_runner.cromwell import get_cromwell_oauth_token, run_cromwell_workflow
@@ -20,13 +22,9 @@ from cpg_utils.git import prepare_git_job
 # pylint: disable=wrong-import-order
 from util import (
     DRIVER_IMAGE,
-    add_analysis_metadata,
     get_analysis_runner_metadata,
     get_baseline_config,
     get_email_from_request,
-    get_reference_prefix,
-    get_registry_prefix,
-    get_web_url_template,
     run_batch_job_and_print_url,
     validate_dataset_access,
     validate_output_dir,
@@ -62,18 +60,22 @@ def add_cromwell_routes(
         # exception gets translated to a Bad Request error in the try block below.
         params = await request.json()
 
-        repo = params['repo']
         dataset = params['dataset']
+        access_level = params['accessLevel']
+        server_config = get_server_config()
         output_dir = validate_output_dir(params['output'])
+        repo = params['repo']
         labels = params.get('labels')
 
         ds_config = validate_dataset_access(dataset, email, repo)
 
         project = ds_config.get('projectId')
-        access_level = params['accessLevel']
         hail_token = ds_config.get(f'{access_level}Token')
+
         if not hail_token:
-            raise web.HTTPBadRequest(reason=f'Invalid access level "{access_level}"')
+            raise web.HTTPBadRequest(
+                reason=f"Invalid access level '{access_level}', couldn't find corresponding hail token"
+            )
 
         commit = params['commit']
         if not commit or commit == 'HEAD':
@@ -123,7 +125,7 @@ def add_cromwell_routes(
         user_name = email.split('@')[0]
         batch_name = f'{user_name} {repo}:{commit}/cromwell/{wf}'
 
-        hail_bucket = f'cpg-{dataset}-hail'
+        hail_bucket = get_dataset_bucket_url(dataset, 'hail')
         backend = hb.ServiceBackend(
             billing_project=dataset,
             remote_tmpdir=remote_tmpdir(hail_bucket),
@@ -164,9 +166,9 @@ def add_cromwell_routes(
 
         url = run_batch_job_and_print_url(batch, wait=params.get('wait', False))
 
-        metadata['batch_url'] = url
         # Publish the metadata to Pub/Sub.
-        add_analysis_metadata(metadata)
+        metadata['batch_url'] = url
+        # TODO GRS publisher.publish(PUBSUB_TOPIC, json.dumps(metadata).encode('utf-8')).result()
 
         return web.Response(text=f'{url}\n')
 

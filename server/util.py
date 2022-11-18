@@ -9,7 +9,7 @@ import toml
 from aiohttp import ClientSession, web
 from cloudpathlib import AnyPath
 from cpg_utils.auth import check_dataset_access, get_user_from_headers
-from cpg_utils.deploy_config import get_deploy_config, get_server_config
+from cpg_utils.deploy_config import get_deploy_config, get_server_config, get_workflow_config
 from cpg_utils.storage import get_dataset_bucket_url, get_global_bucket_url
 from hailtop.config import get_deploy_config as get_hail_deploy_config
 from sample_metadata.apis import AnalysisApi
@@ -126,44 +126,6 @@ def run_batch_job_and_print_url(batch, wait):
     return url
 
 
-def add_analysis_metadata(metadata: Dict[str, str]) -> None:
-    project = metadata.pop('dataset')
-    output_dir = metadata.pop('output')
-    metadata['source'] = 'analysis-runner'
-    access_level = metadata.get('accessLevel')
-
-    if access_level == 'test':
-        project += '-test'
-
-    analysis_model = {
-        'sample_ids': [],
-        'type': 'custom',
-        'status': 'unknown',
-        'output': output_dir,
-        'author': metadata.pop('user'),
-        'meta': metadata,
-        'active': False,
-    }
-
-    analysis = AnalysisApi()
-    analysis.create_new_analysis(project, analysis_model)
-    # TODO GRS update airtable as well
-
-
-def get_registry_prefix() -> str:
-    deploy_config = get_deploy_config()
-    return f'{deploy_config.container_registry}/cpg-common/images'
-
-
-def get_web_url_template() -> str:
-    deploy_config = get_deploy_config()
-    return f'https://{{namespace}}-{deploy_config.web_host_base}/{{dataset}}'
-
-
-def get_reference_prefix() -> str:
-    return get_deploy_config().reference_base
-
-
 def validate_image(container: str) -> bool:
     """
     Check that the image is valid for the access_level
@@ -188,18 +150,9 @@ def get_baseline_config(server_config, dataset, access_level, output_prefix) -> 
     return {
         'hail': {
             'billing_project': dataset,
-            'bucket': f'cpg-{dataset}-hail',
+            'bucket': get_dataset_bucket_url(dataset, 'hail'),
         },
-        'workflow': {
-            'access_level': access_level,
-            'dataset': dataset,
-            'dataset_gcp_project': server_config[dataset]['projectId'],
-            'driver_image': DRIVER_IMAGE,
-            'image_registry_prefix': IMAGE_REGISTRY_PREFIX,
-            'reference_prefix': REFERENCE_PREFIX,
-            'output_prefix': output_prefix,
-            'web_url_template': WEB_URL_TEMPLATE,
-        },
+        'workflow': get_workflow_config(dataset, access_level, DRIVER_IMAGE, output_prefix),
         'references': {
             'genome_build': 'GRCh38',
         },

@@ -17,13 +17,9 @@ from cromwell import add_cromwell_routes
 from util import (
     DRIVER_IMAGE,
     _get_hail_version,
-    add_analysis_metadata,
     get_analysis_runner_metadata,
     get_baseline_config,
     get_email_from_request,
-    get_reference_prefix,
-    get_registry_prefix,
-    get_web_url_template,
     run_batch_job_and_print_url,
     validate_dataset_access,
     validate_image,
@@ -98,6 +94,7 @@ async def index(request):
     hail_version = await _get_hail_version()
     timestamp = datetime.datetime.now().astimezone().isoformat()
 
+    server_config = get_server_config()
     # Prepare the job's configuration and write it to a blob.
     config = get_baseline_config(server_config, dataset, access_level, output_prefix)
     if user_config := params.get('config'):  # Update with user-specified configs.
@@ -181,7 +178,7 @@ async def index(request):
 
     # Publish the metadata to Pub/Sub.
     metadata['batch_url'] = url
-    add_analysis_metadata(metadata)
+    # TODO GRS publisher.publish(PUBSUB_TOPIC, json.dumps(metadata).encode('utf-8')).result()
 
     return web.Response(text=f'{url}\n')
 
