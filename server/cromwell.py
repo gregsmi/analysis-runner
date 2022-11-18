@@ -22,6 +22,7 @@ from util import (
     DRIVER_IMAGE,
     add_analysis_metadata,
     get_analysis_runner_metadata,
+    get_baseline_config,
     get_email_from_request,
     get_reference_prefix,
     get_registry_prefix,
@@ -96,23 +97,10 @@ def add_cromwell_routes(
 
         timestamp = datetime.now().astimezone().isoformat()
 
-        config = params.get('config', {})
-        update_dict(
-            config,
-            {
-                'workflow': {
-                    'access_level': access_level,
-                    'dataset': dataset,
-                    'dataset_gcp_project': project,
-                    'driver_image': DRIVER_IMAGE,
-                    'image_registry_prefix': get_registry_prefix(),
-                    'reference_prefix': get_reference_prefix(),
-                    'output_prefix': output_dir,
-                    'web_url_template': get_web_url_template(),
-                },
-            },
-        )
-
+        # Prepare the job's configuration and write it to a blob.
+        config = get_baseline_config(server_config, dataset, access_level, output_dir)
+        if user_config := params.get('config'):  # Update with user-specified configs.
+            update_dict(config, user_config)
         config_path = write_config(config)
 
         # This metadata dictionary gets stored at the output_dir location.

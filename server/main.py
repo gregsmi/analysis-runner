@@ -19,6 +19,7 @@ from util import (
     _get_hail_version,
     add_analysis_metadata,
     get_analysis_runner_metadata,
+    get_baseline_config,
     get_email_from_request,
     get_reference_prefix,
     get_registry_prefix,
@@ -96,32 +97,11 @@ async def index(request):
     # This metadata dictionary gets stored in the metadata bucket, at the output_dir location.
     hail_version = await _get_hail_version()
     timestamp = datetime.datetime.now().astimezone().isoformat()
-    server_config = get_server_config()
-    dataset_gcp_project = server_config[dataset]['projectId']
 
-    # Prepare the job's configuration, which will be written to a blob.
-    # We overwrite any conflicting entries with the analysis-runner values.
-    config = params.get('config') or {}
-    update_dict(
-        config,
-        {
-            'hail': {
-                'billing_project': dataset,
-                'bucket': hail_bucket,
-            },
-            'workflow': {
-                'access_level': access_level,
-                'dataset': dataset,
-                'dataset_gcp_project': dataset_gcp_project,
-                'driver_image': DRIVER_IMAGE,
-                'image_registry_prefix': get_registry_prefix(),
-                'reference_prefix': get_reference_prefix(),
-                'output_prefix': output_prefix,
-                'web_url_template': get_web_url_template(),
-            },
-        },
-    )
-
+    # Prepare the job's configuration and write it to a blob.
+    config = get_baseline_config(server_config, dataset, access_level, output_prefix)
+    if user_config := params.get('config'):  # Update with user-specified configs.
+        update_dict(config, user_config)
     config_path = write_config(config)
 
     metadata = get_analysis_runner_metadata(
@@ -144,7 +124,9 @@ async def index(request):
     batch_name = f'{user_name} {repo}:{commit}/{" ".join(script)}'
 
     batch = hb.Batch(
-        backend=backend, name=batch_name, requester_pays_project=dataset_gcp_project
+        backend=backend,
+        name=batch_name,
+        requester_pays_project=server_config[dataset]['projectId'],
     )
 
     job = batch.new_job(name='driver')
