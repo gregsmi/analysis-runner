@@ -18,7 +18,7 @@ from util import (
     DRIVER_IMAGE,
     _get_hail_version,
     get_analysis_runner_metadata,
-    get_baseline_config,
+    get_baseline_run_config,
     get_email_from_request,
     run_batch_job_and_print_url,
     validate_dataset_access,
@@ -38,6 +38,8 @@ if USE_GCP_LOGGING:
     client.setup_logging()
 
 routes = web.RouteTableDef()
+
+SUPPORTED_CLOUD_ENVIRONMENTS = {'gcp'}
 
 
 # pylint: disable=too-many-statements
@@ -91,15 +93,23 @@ async def index(request):
         raise web.HTTPBadRequest(reason='Script parameter expects an array')
 
     # This metadata dictionary gets stored in the metadata bucket, at the output_dir location.
-    hail_version = await _get_hail_version()
+    hail_version = await _get_hail_version(environment=cloud_environment)
     timestamp = datetime.datetime.now().astimezone().isoformat()
 
     server_config = get_server_config()
     # Prepare the job's configuration and write it to a blob.
-    config = get_baseline_config(server_config, dataset, access_level, output_prefix)
+
+    run_config = get_baseline_run_config(
+        environment=cloud_environment,
+        gcp_project_id=environment_config.get('projectId'),
+        dataset=dataset,
+        access_level=access_level,
+        output_prefix=output_prefix,
+        driver=image,
+    )
     if user_config := params.get('config'):  # Update with user-specified configs.
-        update_dict(config, user_config)
-    config_path = write_config(config)
+        update_dict(run_config, user_config)
+    config_path = write_config(run_config, environment=cloud_environment)
 
     metadata = get_analysis_runner_metadata(
         timestamp=timestamp,
@@ -115,16 +125,18 @@ async def index(request):
         driver_image=image,
         config_path=config_path,
         cwd=cwd,
+        environment=cloud_environment,
     )
 
     user_name = email.split('@')[0]
     batch_name = f'{user_name} {repo}:{commit}/{" ".join(script)}'
 
-    batch = hb.Batch(
-        backend=backend,
-        name=batch_name,
-        requester_pays_project=server_config[dataset]['projectId'],
-    )
+    extra_batch_params = {}
+
+    if cloud_environment == 'gcp':
+        extra_batch_params['requester_pays_project'] = environment_config['projectId']
+
+    batch = hb.Batch(backend=backend, name=batch_name, **extra_batch_params)
 
     job = batch.new_job(name='driver')
     prepare_git_job(
@@ -174,13 +186,68 @@ async def index(request):
     escaped_script = ' '.join(quote(s) for s in script if s)
     job.command(escaped_script)
 
-    url = run_batch_job_and_print_url(batch, wait=params.get('wait', False))
+    url = run_batch_job_and_print_url(
+        batch, wait=params.get('wait', False), environment=cloud_environment
+    )
 
     # Publish the metadata to Pub/Sub.
     metadata['batch_url'] = url
     # TODO GRS publisher.publish(PUBSUB_TOPIC, json.dumps(metadata).encode('utf-8')).result()
 
     return web.Response(text=f'{url}\n')
+
+
+@routes.get('/config')
+async def config(request):
+    """
+    Generate CPG config, as JSON response
+    """
+    email = get_email_from_request(request)
+    # When accessing a missing entry in the params dict, the resulting KeyError
+    # exception gets translated to a Bad Request error in the try block below.
+    params = await request.json()
+
+    output_prefix = validate_output_dir(params['output'])
+    dataset = params['dataset']
+    cloud_environment = params.get('cloud_environment', 'gcp')
+    if cloud_environment not in SUPPORTED_CLOUD_ENVIRONMENTS:
+        raise web.HTTPBadRequest(
+            reason=f'analysis-runner config does not yet support the {cloud_environment} environment'
+        )
+
+    dataset_config = check_dataset_and_group(
+        server_config=get_server_config(),
+        environment=cloud_environment,
+        dataset=dataset,
+        email=email,
+    )
+    environment_config = dataset_config.get(cloud_environment)
+
+    image = params.get('image') or DRIVER_IMAGE
+    access_level = params['accessLevel']
+    is_test = access_level == 'test'
+
+    if not validate_image(image, is_test):
+        raise web.HTTPBadRequest(reason=f'Invalid image "{image}"')
+
+    # Prepare the job's configuration to return
+
+    run_config = get_baseline_run_config(
+        environment=cloud_environment,
+        gcp_project_id=environment_config.get('projectId'),
+        dataset=dataset,
+        access_level=access_level,
+        output_prefix=output_prefix,
+        driver=image,
+    )
+    if user_config := params.get('config'):  # Update with user-specified configs.
+        update_dict(run_config, user_config)
+
+    return web.Response(
+        status=200,
+        body=json.dumps(run_config).encode('utf-8'),
+        content_type='application/json',
+    )
 
 
 add_cromwell_routes(routes)

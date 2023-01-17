@@ -1,3 +1,4 @@
+# pylint: disable=too-many-function-args
 """
 Utility methods for analysis-runner server
 """
@@ -18,7 +19,7 @@ DRIVER_IMAGE = os.getenv('DRIVER_IMAGE')
 assert DRIVER_IMAGE
 
 
-async def _get_hail_version() -> str:
+async def _get_hail_version(environment: str) -> str:
     """ASYNC get hail version for the hail server in the local deploy_config"""
     hail_deploy_config = get_hail_deploy_config()
     url = hail_deploy_config.url('batch', f'/api/v1alpha/version')
@@ -85,6 +86,7 @@ def get_analysis_runner_metadata(
     driver_image,
     config_path,
     cwd,
+    environment,
     **kwargs,
 ):
     """
@@ -107,12 +109,17 @@ def get_analysis_runner_metadata(
         'driverImage': driver_image,
         'configPath': config_path,
         'cwd': cwd,
+        'environment': environment,
         **kwargs,
     }
 
 
-def run_batch_job_and_print_url(batch, wait):
+def run_batch_job_and_print_url(batch, wait, environment):
     """Call batch.run(), return the URL, and wait for job to  finish if wait=True"""
+    if not environment == 'gcp':
+        raise web.HTTPBadRequest(
+            reason=f'Unsupported Hail Batch deploy config environment: {environment}'
+        )
     bc_batch = batch.run(wait=False)
 
     hail_deploy_config = get_hail_deploy_config()
@@ -135,7 +142,7 @@ def validate_image(container: str) -> bool:
     return any(container.startswith(prefix) for prefix in allowed)
 
 
-def write_config(config: dict) -> str:
+def write_config(config: dict, environment: str) -> str:
     """Writes the given config dictionary to a blob and returns its unique path."""
     # get_config will recognize this section and load the deployment config.
     config['CPG_DEPLOY_CONFIG'] = get_deploy_config().to_dict()
@@ -145,9 +152,24 @@ def write_config(config: dict) -> str:
     return str(config_path)
 
 
-def get_baseline_config(server_config, dataset, access_level, output_prefix) -> dict:
-    """Returns the baseline config of analysis-runner specified default values."""
-    return {
+def get_baseline_run_config(
+    environment: str,
+    gcp_project_id,
+    dataset,
+    access_level,
+    output_prefix,
+    driver: str | None = None,
+) -> dict:
+    """
+    Returns the baseline config of analysis-runner specified default values,
+    as well as pre-generated templates with common locations and resources.
+    permits overriding the default driver image
+    """
+    config_prefix = CONFIG_PATH_PREFIXES.get(environment)
+    if not config_prefix:
+        raise web.HTTPBadRequest(reason=f'Bad environment for config: {environment}')
+
+    baseline_config = {
         'hail': {
             'billing_project': dataset,
             'bucket': get_dataset_bucket_url(dataset, 'hail'),
@@ -158,3 +180,18 @@ def get_baseline_config(server_config, dataset, access_level, output_prefix) -> 
             'genome_build': 'GRCh38',
         },
     }
+    template_paths = [
+        AnyPath(config_prefix) / 'templates' / suf
+        for suf in [
+            'images/images.toml',
+            'references/references.toml',
+            f'storage/{environment}/{dataset}-{cpg_namespace(access_level)}.toml',
+        ]
+    ]
+    if missing := [p for p in template_paths if not p.exists()]:
+        raise ValueError(f'Missing expected template configs: {missing}')
+
+    for path in template_paths:
+        with path.open() as f:
+            update_dict(baseline_config, toml.load(f))
+    return baseline_config

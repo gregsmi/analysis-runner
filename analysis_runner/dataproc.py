@@ -6,8 +6,9 @@ import uuid
 from shlex import quote
 from typing import Optional, List, Dict, Tuple
 from cpg_utils.config import get_config
-from cpg_utils.hail_batch import Namespace
+from cpg_utils.hail_batch import cpg_namespace
 import hailtop.batch as hb
+
 from analysis_runner.constants import GCLOUD_ACTIVATE_AUTH
 from cpg_utils.git import (
     get_git_default_remote,
@@ -19,7 +20,7 @@ from cpg_utils.git import (
 )
 
 
-HAIL_VERSION = '0.2.102'
+HAIL_VERSION = '0.2.105'
 DATAPROC_IMAGE = (
     f'australia-southeast1-docker.pkg.dev/analysis-runner/images/'
     f'dataproc:hail-{HAIL_VERSION}'
@@ -31,7 +32,6 @@ WHEEL = f'gs://cpg-hail-ci/wheels/hail-{HAIL_VERSION}-py3-none-any.whl'
 
 _config = get_config()
 ACCESS_LEVEL = _config['workflow']['access_level']
-NAMESPACE = Namespace.from_access_level(ACCESS_LEVEL).value
 DATASET = _config['workflow']['dataset']
 DATASET_GCP_PROJECT = _config['workflow']['dataset_gcp_project']
 GCLOUD_CONFIG_SET_PROJECT = f'gcloud config set project {DATASET_GCP_PROJECT}'
@@ -119,6 +119,7 @@ def setup_dataproc(  # pylint: disable=unused-argument,too-many-arguments
     secondary_worker_boot_disk_size: Optional[int] = None,  # in GB
     packages: Optional[List[str]] = None,
     init: Optional[List[str]] = None,
+    init_timeout: Optional[str] = None,
     vep: Optional[str] = None,
     requester_pays_allow_all: bool = False,
     depends_on: Optional[List[hb.batch.job.Job]] = None,
@@ -170,6 +171,7 @@ def _add_start_job(  # pylint: disable=too-many-arguments
     secondary_worker_boot_disk_size: Optional[int] = None,  # in GB
     packages: Optional[List[str]] = None,
     init: Optional[List[str]] = None,
+    init_timeout: Optional[str] = None,
     vep: Optional[str] = None,
     requester_pays_allow_all: bool = False,
     cluster_name: Optional[str] = None,
@@ -211,6 +213,7 @@ def _add_start_job(  # pylint: disable=too-many-arguments
 
     # Note that the options and their values must be separated by an equal sign.
     # Using a space will break some options like --label
+    namespace = cpg_namespace(ACCESS_LEVEL)
     start_job_command = [
         'hailctl dataproc start',
         f'--region={region}',
@@ -221,8 +224,8 @@ def _add_start_job(  # pylint: disable=too-many-arguments
         f'--properties="{",".join(spark_env)}"',
         f'--labels={labels_formatted}',
         f'--wheel={WHEEL}',
-        f'--bucket=cpg-{DATASET}-{NAMESPACE}-tmp',
-        f'--temp-bucket=cpg-{DATASET}-{NAMESPACE}-tmp',
+        f'--bucket=cpg-{DATASET}-{namespace}-tmp',
+        f'--temp-bucket=cpg-{DATASET}-{namespace}-tmp',
     ]
     if worker_machine_type:
         start_job_command.append(f'--worker-machine-type={worker_machine_type}')
@@ -238,13 +241,14 @@ def _add_start_job(  # pylint: disable=too-many-arguments
         start_job_command.append(f'--packages={quote(",".join(packages))}')
     if init:
         start_job_command.append(f'--init={",".join(init)}')
+    if init_timeout:
+        start_job_command.append(f'--init_timeout={init_timeout}')
     if vep:
         start_job_command.append(f'--vep={vep}')
     if requester_pays_allow_all:
         start_job_command.append(f'--requester-pays-allow-all')
     if scopes:
         start_job_command.append(f'--scopes={",".join(scopes)}')
-
     if autoscaling_policy:
         start_job_command.append(f'--autoscaling-policy={autoscaling_policy}')
 
@@ -294,7 +298,7 @@ def _add_submit_job(
         f'hailctl dataproc submit '
         f'--region={region} '
         + (f'--pyfiles {",".join(pyfiles)} ' if pyfiles else '')
-        + f'{cluster_id} {script} '
+        + f'{cluster_id} -- {script} '
     )
     return main_job
 

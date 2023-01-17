@@ -14,8 +14,8 @@ fi
 conda install -c conda-forge mamba
 # Can't update Python 3.10 without removing pinned versions first.
 rm /opt/conda/miniconda3/conda-meta/pinned
-# bcolz and spyder don't seem to be compatible with Python 3.10
-mamba remove bcolz spyder
+# Remove a few packages that prevent installing Python 3.10.
+mamba remove bcolz fiona pyqt spyder
 # Finally, update Python.
 mamba install python=3.10
 
@@ -34,13 +34,14 @@ pip3 install \
     selenium>=3.8.0 \
     statsmodels \
     cloudpathlib[all] \
-    gnomad
+    gnomad \
+    cryptography==38.0.4
 
 # Install phantomjs with a workaround for the libssl_conf.so on Debian Buster:
 # https://github.com/bazelbuild/rules_closure/issues/351#issuecomment-854628326
 cd /opt
 # Source: https://bitbucket.org/ariya/phantomjs/downloads/phantomjs-2.1.1-linux-x86_64.tar.bz2
-gsutil cat gs://cpg-reference/hail_dataproc/phantomjs-2.1.1-linux-x86_64.tar.bz2 | tar xj
+gsutil cat gs://cpg-common-main/hail_dataproc/phantomjs-2.1.1-linux-x86_64.tar.bz2 | tar xj
 cat <<EOF > /usr/local/bin/phantomjs
 #!/bin/bash
 export OPENSSL_CONF=/dev/null

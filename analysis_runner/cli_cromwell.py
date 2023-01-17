@@ -252,6 +252,7 @@ curl --location --request POST \\
         headers={
             'Authorization': f'Bearer {get_google_identity_token(server_endpoint)}'
         },
+        timeout=60,
     )
     try:
         response.raise_for_status()
@@ -273,6 +274,7 @@ def _check_cromwell_status(workflow_id, json_output: Optional[str], *args, **kwa
         headers={
             'Authorization': f'Bearer {get_google_identity_token(SERVER_ENDPOINT)}'
         },
+        timeout=60,
     )
     response.raise_for_status()
     d = response.json()

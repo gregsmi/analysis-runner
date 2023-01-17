@@ -23,7 +23,7 @@ from cpg_utils.git import prepare_git_job
 from util import (
     DRIVER_IMAGE,
     get_analysis_runner_metadata,
-    get_baseline_config,
+    get_baseline_run_config,
     get_email_from_request,
     run_batch_job_and_print_url,
     validate_dataset_access,
@@ -62,7 +62,7 @@ def add_cromwell_routes(
 
         dataset = params['dataset']
         access_level = params['accessLevel']
-        server_config = get_server_config()
+        cloud_environment = 'gcp'
         output_dir = validate_output_dir(params['output'])
         repo = params['repo']
         labels = params.get('labels')
@@ -100,10 +100,17 @@ def add_cromwell_routes(
         timestamp = datetime.now().astimezone().isoformat()
 
         # Prepare the job's configuration and write it to a blob.
-        config = get_baseline_config(server_config, dataset, access_level, output_dir)
+
+        config = get_baseline_run_config(
+            environment=cloud_environment,
+            gcp_project_id=project,
+            dataset=dataset,
+            access_level=access_level,
+            output_prefix=output_dir,
+        )
         if user_config := params.get('config'):  # Update with user-specified configs.
             update_dict(config, user_config)
-        config_path = write_config(config)
+        config_path = write_config(config, cloud_environment)
 
         # This metadata dictionary gets stored at the output_dir location.
         metadata = get_analysis_runner_metadata(
@@ -120,6 +127,8 @@ def add_cromwell_routes(
             config_path=config_path,
             cwd=cwd,
             mode='cromwell',
+            # no support for other environments
+            environment=cloud_environment,
         )
 
         user_name = email.split('@')[0]
@@ -164,7 +173,9 @@ def add_cromwell_routes(
             project=project,
         )
 
-        url = run_batch_job_and_print_url(batch, wait=params.get('wait', False))
+        url = run_batch_job_and_print_url(
+            batch, wait=params.get('wait', False), environment=cloud_environment
+        )
 
         # Publish the metadata to Pub/Sub.
         metadata['batch_url'] = url
@@ -183,7 +194,8 @@ def add_cromwell_routes(
 
             token = get_cromwell_oauth_token()
             headers = {'Authorization': 'Bearer ' + str(token)}
-            req = requests.get(cromwell_metadata_url, headers=headers)
+            # longer timeout because metadata can take a while to fetch
+            req = requests.get(cromwell_metadata_url, headers=headers, timeout=120)
             if not req.ok:
                 raise web.HTTPInternalServerError(
                     reason=req.content.decode() or req.reason

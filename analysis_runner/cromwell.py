@@ -375,7 +375,9 @@ def watch_workflow(
         )
         try:
             token = _get_cromwell_oauth_token()
-            r = requests.get(url, headers={'Authorization': f'Bearer {token}'})
+            r = requests.get(
+                url, headers={'Authorization': f'Bearer {token}'}, timeout=60
+            )
             if not r.ok:
                 _remaining_exceptions -= 1
                 logger.warning(
@@ -394,7 +396,9 @@ def watch_workflow(
                     f'/v1/{workflow_id}/outputs'
                 )
                 r_outputs = requests.get(
-                    outputs_url, headers={'Authorization': f'Bearer {token}'}
+                    outputs_url,
+                    headers={'Authorization': f'Bearer {token}'},
+                    timeout=60,
                 )
                 if not r_outputs.ok:
                     logger.warning(

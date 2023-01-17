@@ -54,6 +54,7 @@ RUN apt-get update && \
         bokeh \
         cloudpathlib[all] \
         cpg-utils-ms \
+        cpg-workflows-ms \
         gcsfs \
         hail \
         pyarrow \
