@@ -10,7 +10,7 @@ from aiohttp import ClientSession, web
 from cloudpathlib import AnyPath
 from cpg_utils.auth import check_dataset_access, get_user_from_headers
 from cpg_utils.deploy_config import get_deploy_config, get_server_config, get_workflow_config
-from cpg_utils.storage import get_dataset_bucket_url, get_global_bucket_url
+from cpg_utils.storage import get_dataset_bucket_config, get_dataset_bucket_url, get_global_bucket_url
 from hailtop.config import get_deploy_config as get_hail_deploy_config
 from sample_metadata.apis import AnalysisApi
 
@@ -153,6 +153,7 @@ def get_baseline_config(server_config, dataset, access_level, output_prefix) -> 
             'bucket': get_dataset_bucket_url(dataset, 'hail'),
         },
         'workflow': get_workflow_config(dataset, access_level, DRIVER_IMAGE, output_prefix),
+        'storage': { dataset : get_dataset_bucket_config(dataset, access_level)},
         'references': {
             'genome_build': 'GRCh38',
         },
