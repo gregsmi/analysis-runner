@@ -107,6 +107,7 @@ def add_cromwell_routes(
             dataset=dataset,
             access_level=access_level,
             output_prefix=output_dir,
+            driver=DRIVER_IMAGE
         )
         if user_config := params.get('config'):  # Update with user-specified configs.
             update_dict(config, user_config)

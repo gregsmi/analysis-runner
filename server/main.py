@@ -53,14 +53,15 @@ async def index(request):
     params = await request.json()
 
     repo = params['repo']
-    dataset = params['dataset']
     output_prefix = validate_output_dir(params['output'])
+    dataset = params['dataset']
 
     image = params.get('image') or DRIVER_IMAGE
     cpu = params.get('cpu', 1)
     memory = params.get('memory', '1G')
     preemptible = params.get('preemptible', True)
     environment_variables = params.get('environmentVariables')
+    cloud_environment = 'azure'
 
     ds_config = validate_dataset_access(dataset, email, repo)
 
@@ -93,15 +94,13 @@ async def index(request):
         raise web.HTTPBadRequest(reason='Script parameter expects an array')
 
     # This metadata dictionary gets stored in the metadata bucket, at the output_dir location.
-    hail_version = await _get_hail_version(environment=cloud_environment)
+    hail_version = await _get_hail_version()
     timestamp = datetime.datetime.now().astimezone().isoformat()
 
-    server_config = get_server_config()
     # Prepare the job's configuration and write it to a blob.
-
     run_config = get_baseline_run_config(
         environment=cloud_environment,
-        gcp_project_id=environment_config.get('projectId'),
+        gcp_project_id='projectId',
         dataset=dataset,
         access_level=access_level,
         output_prefix=output_prefix,
@@ -209,32 +208,21 @@ async def config(request):
 
     output_prefix = validate_output_dir(params['output'])
     dataset = params['dataset']
-    cloud_environment = params.get('cloud_environment', 'gcp')
-    if cloud_environment not in SUPPORTED_CLOUD_ENVIRONMENTS:
-        raise web.HTTPBadRequest(
-            reason=f'analysis-runner config does not yet support the {cloud_environment} environment'
-        )
 
-    dataset_config = check_dataset_and_group(
-        server_config=get_server_config(),
-        environment=cloud_environment,
-        dataset=dataset,
-        email=email,
-    )
-    environment_config = dataset_config.get(cloud_environment)
+    ds_config = validate_dataset_access(dataset, email, 'repo')
 
     image = params.get('image') or DRIVER_IMAGE
     access_level = params['accessLevel']
     is_test = access_level == 'test'
 
-    if not validate_image(image, is_test):
+    if not is_test and not validate_image(image):
         raise web.HTTPBadRequest(reason=f'Invalid image "{image}"')
 
     # Prepare the job's configuration to return
 
     run_config = get_baseline_run_config(
-        environment=cloud_environment,
-        gcp_project_id=environment_config.get('projectId'),
+        environment='azure',
+        gcp_project_id='projectId',
         dataset=dataset,
         access_level=access_level,
         output_prefix=output_prefix,

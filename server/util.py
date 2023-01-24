@@ -10,8 +10,9 @@ import toml
 from aiohttp import ClientSession, web
 from cloudpathlib import AnyPath
 from cpg_utils.auth import check_dataset_access, get_user_from_headers
-from cpg_utils.deploy_config import get_deploy_config, get_server_config, get_workflow_config
+from cpg_utils.deploy_config import get_deploy_config, get_server_config
 from cpg_utils.storage import get_dataset_bucket_config, get_dataset_bucket_url, get_global_bucket_url
+from cpg_utils.hail_batch import cpg_namespace
 from hailtop.config import get_deploy_config as get_hail_deploy_config
 from sample_metadata.apis import AnalysisApi
 
@@ -19,7 +20,7 @@ DRIVER_IMAGE = os.getenv('DRIVER_IMAGE')
 assert DRIVER_IMAGE
 
 
-async def _get_hail_version(environment: str) -> str:
+async def _get_hail_version() -> str:
     """ASYNC get hail version for the hail server in the local deploy_config"""
     hail_deploy_config = get_hail_deploy_config()
     url = hail_deploy_config.url('batch', f'/api/v1alpha/version')
@@ -116,10 +117,6 @@ def get_analysis_runner_metadata(
 
 def run_batch_job_and_print_url(batch, wait, environment):
     """Call batch.run(), return the URL, and wait for job to  finish if wait=True"""
-    if not environment == 'gcp':
-        raise web.HTTPBadRequest(
-            reason=f'Unsupported Hail Batch deploy config environment: {environment}'
-        )
     bc_batch = batch.run(wait=False)
 
     hail_deploy_config = get_hail_deploy_config()
@@ -133,7 +130,7 @@ def run_batch_job_and_print_url(batch, wait, environment):
     return url
 
 
-def validate_image(container: str) -> bool:
+def validate_image(container) -> bool:
     """
     Check that the image is valid for the access_level
     """
@@ -158,40 +155,41 @@ def get_baseline_run_config(
     dataset,
     access_level,
     output_prefix,
-    driver: str | None = None,
+    driver: str,
 ) -> dict:
     """
     Returns the baseline config of analysis-runner specified default values,
     as well as pre-generated templates with common locations and resources.
-    permits overriding the default driver image
     """
-    config_prefix = CONFIG_PATH_PREFIXES.get(environment)
-    if not config_prefix:
-        raise web.HTTPBadRequest(reason=f'Bad environment for config: {environment}')
-
     baseline_config = {
         'hail': {
             'billing_project': dataset,
             'bucket': get_dataset_bucket_url(dataset, 'hail'),
         },
-        'workflow': get_workflow_config(dataset, access_level, DRIVER_IMAGE, output_prefix),
-        'storage': { dataset : get_dataset_bucket_config(dataset, access_level)},
-        'references': {
-            'genome_build': 'GRCh38',
+        'workflow':  {
+            'access_level': access_level,
+            'dataset': dataset,
+            'dataset_gcp_project': gcp_project_id,
+            'driver_image': driver,
+            'output_prefix': output_prefix,
         },
+        'storage': { dataset : get_dataset_bucket_config(dataset, access_level)},
     }
-    template_paths = [
-        AnyPath(config_prefix) / 'templates' / suf
-        for suf in [
-            'images/images.toml',
-            'references/references.toml',
-            f'storage/{environment}/{dataset}-{cpg_namespace(access_level)}.toml',
-        ]
-    ]
-    if missing := [p for p in template_paths if not p.exists()]:
-        raise ValueError(f'Missing expected template configs: {missing}')
 
-    for path in template_paths:
-        with path.open() as f:
-            update_dict(baseline_config, toml.load(f))
+    # Our version of AR relies on the caller to pass in [images] and [references] sections.
+    # template_paths = [
+    #     AnyPath(config_prefix) / 'templates' / suf
+    #     for suf in [
+    #         'images/images.toml',
+    #         'references/references.toml',
+    #         f'storage/{environment}/{dataset}-{cpg_namespace(access_level)}.toml',
+    #     ]
+    # ]
+    # if missing := [p for p in template_paths if not p.exists()]:
+    #     raise ValueError(f'Missing expected template configs: {missing}')
+
+    # for path in template_paths:
+    #     with path.open() as f:
+    #         update_dict(baseline_config, toml.load(f))
+
     return baseline_config
